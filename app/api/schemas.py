@@ -8,10 +8,11 @@ from pydantic import BaseModel, Field
 class ExportRequest(BaseModel):
     """Request schema for single export."""
     url: str = Field(..., description="AI platform share link URL")
+    output_dir: str | None = Field(None, description="Output directory (optional, defaults to settings.output_dir)")
 
     model_config = {
         "json_schema_extra": {
-            "example": {"url": "https://chatgpt.com/share/abc123"}
+            "example": {"url": "https://chatgpt.com/share/abc123", "output_dir": "/path/to/output"}
         }
     }
 
@@ -19,6 +20,7 @@ class ExportRequest(BaseModel):
 class BatchExportRequest(BaseModel):
     """Request schema for batch export."""
     urls: list[str] = Field(..., min_length=1, max_length=100)
+    output_dir: str | None = Field(None, description="Output directory (optional, defaults to settings.output_dir)")
 
     model_config = {
         "json_schema_extra": {
@@ -26,7 +28,8 @@ class BatchExportRequest(BaseModel):
                 "urls": [
                     "https://chatgpt.com/share/abc123",
                     "https://chatgpt.com/share/def456"
-                ]
+                ],
+                "output_dir": "/path/to/output"
             }
         }
     }

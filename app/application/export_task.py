@@ -27,6 +27,7 @@ class ExportTask:
     id: str = field(default_factory=generate_task_id)
     conversation_id: str | None = None
     url: str | None = None
+    output_dir: str | None = None  # Custom output dir, None means use settings default
     status: ExportTaskStatus = ExportTaskStatus.PENDING
     progress: float = 0.0
     output_path: str | None = None

@@ -49,9 +49,9 @@ class ExportService:
         from app.infrastructure.downloader.aiohttp_downloader import AiohttpDownloader
         return AiohttpDownloader()
 
-    async def create_export_task(self, url: str) -> ExportTask:
+    async def create_export_task(self, url: str, output_dir: str | None = None) -> ExportTask:
         """Create an export task."""
-        task = ExportTask(url=url)
+        task = ExportTask(url=url, output_dir=output_dir)
         if self._task_repo:
             await self._task_repo.save(task)
         return task
@@ -82,6 +82,9 @@ class ExportService:
             conversation = await parser.parse(task.url)
             task.conversation_id = conversation.id
 
+            # Determine output directory
+            base_output_dir = Path(task.output_dir) if task.output_dir else settings.output_dir
+
             # Mark images for download
             images = list(conversation.images)
             if images:
@@ -89,7 +92,7 @@ class ExportService:
                 await self._task_repo.save(task)
 
                 # Download images
-                output_dir = settings.output_dir / sanitize_conversation_title(conversation.title)
+                output_dir = base_output_dir / sanitize_conversation_title(conversation.title)
                 image_results = await self._downloader.download_batch(
                     images,
                     output_dir / settings.markdown_image_prefix
@@ -97,13 +100,13 @@ class ExportService:
 
                 # Update image local paths and wire to blocks
                 image_id_to_resource = {img.id: img for img in images}
-                for block in conversation.blocks:
+                for i, block in enumerate(conversation.blocks):
                     if block.is_image:
                         image_id = block.metadata.get("image_id")
                         if image_id and image_id in image_id_to_resource:
                             img = image_id_to_resource[image_id]
-                            if result.success and result.local_path:
-                                img.mark_downloaded(str(result.local_path))
+                            if i < len(image_results) and image_results[i].success and image_results[i].local_path:
+                                img.mark_downloaded(str(image_results[i].local_path))
                             block.metadata["local_path"] = img.local_path or ""
                             block.metadata["local_filename"] = img.local_filename or ""
 
@@ -112,7 +115,7 @@ class ExportService:
             await self._task_repo.save(task)
 
             document = self._conversation_to_document(conversation)
-            export_result = await self._exporter.export(document, settings.output_dir)
+            export_result = await self._exporter.export(document, base_output_dir)
 
             if export_result.success:
                 task.mark_completed(

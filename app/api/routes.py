@@ -49,7 +49,7 @@ async def export_conversation(
     Use GET /task/{task_id} to check status.
     """
     try:
-        task = await export_service.create_export_task(request.url)
+        task = await export_service.create_export_task(request.url, request.output_dir)
         background_tasks.add_task(export_service.execute_export, task.id)
         return ExportResponse(
             task_id=task.id,
@@ -77,7 +77,7 @@ async def batch_export(
     responses = []
     for url in request.urls:
         try:
-            task = await export_service.create_export_task(url)
+            task = await export_service.create_export_task(url, request.output_dir)
             background_tasks.add_task(export_service.execute_export, task.id)
             responses.append(ExportResponse(
                 task_id=task.id,
