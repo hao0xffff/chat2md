@@ -9,6 +9,7 @@ import structlog
 
 from app.domain.model.conversation import Conversation
 from app.domain.model.block import Block, BlockType
+from app.domain.model.image_resource import ImageResource
 from app.domain.value_objects import Platform
 from app.common.utils import generate_id
 
@@ -58,8 +59,19 @@ class PlaywrightChatGPTParser:
                 conversation_id = self._extract_conversation_id(url)
                 title = self._extract_title(page)
 
-                # Extract messages
-                messages = self._extract_messages(page)
+                # Extract messages and images
+                messages, image_data = self._extract_messages(page)
+
+                # Build image resources
+                images = []
+                for img_info in image_data:
+                    img_resource = ImageResource(
+                        id=img_info["id"],
+                        url=img_info["url"],
+                        alt_text=img_info["alt"],
+                        metadata=img_info["metadata"]
+                    )
+                    images.append(img_resource)
 
                 # Build conversation
                 conversation = Conversation(
@@ -68,12 +80,14 @@ class PlaywrightChatGPTParser:
                     platform_conversation_id=conversation_id,
                     title=title,
                     blocks=messages,
+                    images=images,
                 )
 
                 self._logger.info(
                     "parse_completed",
                     conversation_id=conversation_id,
-                    message_count=len(messages)
+                    message_count=len(messages),
+                    image_count=len(images)
                 )
 
                 return conversation
@@ -102,9 +116,15 @@ class PlaywrightChatGPTParser:
         except Exception:
             return "Untitled Conversation"
 
-    def _extract_messages(self, page: Page) -> list[Block]:
-        """Extract messages from the page."""
+    def _extract_messages(self, page: Page) -> tuple[list[Block], list[dict]]:
+        """
+        Extract messages and images from the page.
+
+        Returns:
+            A tuple of (messages, image_urls).
+        """
         messages: list[Block] = []
+        image_urls: list[dict] = []
 
         try:
             # Find all message elements
@@ -117,7 +137,32 @@ class PlaywrightChatGPTParser:
                 if role not in ["user", "assistant"]:
                     continue
 
+                # Extract text content
                 text = element.inner_text().strip()
+
+                # Extract images from this message element
+                img_elements = element.query_selector_all("img")
+                for j, img in enumerate(img_elements):
+                    img_url = img.get_attribute("src")
+                    if img_url and img_url.startswith("http"):
+                        image_id = f"img_{i}_{j}"
+                        image_urls.append({
+                            "id": image_id,
+                            "url": img_url,
+                            "alt": img.get_attribute("alt") or f"image_{image_id}",
+                            "metadata": {"role": role, "message_index": i}
+                        })
+                        # Add ImageBlock to messages if text is empty
+                        if not text:
+                            block = Block(
+                                id=generate_id(),
+                                block_type=BlockType.IMAGE,
+                                image_url=img_url,
+                                alt_text=img.get_attribute("alt") or f"image_{image_id}",
+                                metadata={"role": role, "image_id": image_id, "index": i}
+                            )
+                            messages.append(block)
+
                 if not text:
                     continue
 
@@ -132,7 +177,7 @@ class PlaywrightChatGPTParser:
         except Exception as e:
             self._logger.error("message_extraction_failed", error=str(e))
 
-        return messages
+        return messages, image_urls
 
 
 class ChatGPTParserPlaywrightAdapter:

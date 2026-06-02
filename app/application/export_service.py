@@ -95,10 +95,17 @@ class ExportService:
                     output_dir / settings.markdown_image_prefix
                 )
 
-                # Update image local paths
-                for img, result in zip(images, image_results):
-                    if result.success and result.local_path:
-                        img.mark_downloaded(str(result.local_path))
+                # Update image local paths and wire to blocks
+                image_id_to_resource = {img.id: img for img in images}
+                for block in conversation.blocks:
+                    if block.is_image:
+                        image_id = block.metadata.get("image_id")
+                        if image_id and image_id in image_id_to_resource:
+                            img = image_id_to_resource[image_id]
+                            if result.success and result.local_path:
+                                img.mark_downloaded(str(result.local_path))
+                            block.metadata["local_path"] = img.local_path or ""
+                            block.metadata["local_filename"] = img.local_filename or ""
 
             # Export to markdown
             task.mark_exporting()
