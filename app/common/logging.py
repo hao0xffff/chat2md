@@ -22,7 +22,7 @@ def configure_logging() -> None:
             structlog.processors.add_log_level,
             structlog.processors.TimeStamper(fmt="iso"),
             structlog.processors.StackInfoRenderer(),
-            structlog.processors.format_exc,
+            structlog.processors.ExceptionRenderer(),
             structlog.processors.UnicodeDecoder(),
             structlog.processors.JSONRenderer() if settings.log_format == "json"
             else structlog.dev.ConsoleRenderer(),

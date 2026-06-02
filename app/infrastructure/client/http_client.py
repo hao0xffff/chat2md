@@ -1,4 +1,5 @@
 """HTTP client using aiohttp."""
+import os
 import aiohttp
 from typing import Any
 
@@ -9,6 +10,20 @@ from app.common.exceptions import DownloadException
 
 logger = structlog.get_logger()
 
+# Default proxy URL - can be set via environment or hardcoded for development
+DEFAULT_PROXY = "http://127.0.0.1:7890"
+
+
+def _get_proxy() -> str | None:
+    """Get proxy URL from environment."""
+    for var in ["HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy"]:
+        proxy = os.environ.get(var)
+        if proxy:
+            return proxy
+    return None
+
+PROXY_URL = _get_proxy()
+
 
 class HttpClient:
     """
@@ -16,6 +31,7 @@ class HttpClient:
 
     Provides a simple interface for making HTTP requests
     with connection pooling and timeout handling.
+    Supports proxy via environment variables or default proxy.
     """
 
     def __init__(self):
@@ -54,8 +70,12 @@ class HttpClient:
         """
         session = await self._get_session()
         self._logger.debug("http_get", url=url)
+
+        # Use proxy from env, default proxy, or kwargs
+        proxy = kwargs.pop("proxy", PROXY_URL or DEFAULT_PROXY)
+
         try:
-            response = await session.get(url, **kwargs)
+            response = await session.get(url, proxy=proxy, **kwargs)
             response.raise_for_status()
             return response
         except aiohttp.ClientError as e:

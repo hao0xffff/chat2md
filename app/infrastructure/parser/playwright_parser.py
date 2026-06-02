@@ -1,0 +1,151 @@
+"""Playwright-based ChatGPT parser for share links."""
+import asyncio
+import time
+from typing import Any
+
+from playwright.sync_api import sync_playwright, Browser, Page
+
+import structlog
+
+from app.domain.model.conversation import Conversation
+from app.domain.model.block import Block, BlockType
+from app.domain.value_objects import Platform
+from app.common.utils import generate_id
+
+logger = structlog.get_logger()
+
+
+class PlaywrightChatGPTParser:
+    """
+    ChatGPT parser using Playwright for share links.
+
+    Uses browser automation to handle the modern ChatGPT
+    SPA (Single Page Application) that loads conversation
+    data dynamically via JavaScript.
+    """
+
+    def __init__(self, proxy_url: str | None = None):
+        self._proxy_url = proxy_url or "http://127.0.0.1:7890"
+        self._logger = logger.bind(component="playwright_parser")
+
+    def parse(self, url: str) -> Conversation:
+        """
+        Parse a ChatGPT share link using Playwright.
+
+        Args:
+            url: The ChatGPT share link URL.
+
+        Returns:
+            A Conversation domain model.
+        """
+        with sync_playwright() as p:
+            browser = p.chromium.launch(
+                headless=True,
+                args=[f"--proxy-server={self._proxy_url}"]
+            )
+            try:
+                context = browser.new_context()
+                page = context.new_page()
+
+                self._logger.info("navigating_to_url", url=url)
+                page.goto(url, timeout=60000)
+                page.wait_for_load_state("domcontentloaded")
+
+                # Wait for dynamic content to load
+                time.sleep(3)
+
+                # Extract conversation metadata
+                conversation_id = self._extract_conversation_id(url)
+                title = self._extract_title(page)
+
+                # Extract messages
+                messages = self._extract_messages(page)
+
+                # Build conversation
+                conversation = Conversation(
+                    id=conversation_id,
+                    platform=Platform.CHATGPT,
+                    platform_conversation_id=conversation_id,
+                    title=title,
+                    blocks=messages,
+                )
+
+                self._logger.info(
+                    "parse_completed",
+                    conversation_id=conversation_id,
+                    message_count=len(messages)
+                )
+
+                return conversation
+
+            finally:
+                browser.close()
+
+    def _extract_conversation_id(self, url: str) -> str:
+        """Extract conversation ID from URL."""
+        # URL format: https://chatgpt.com/share/{conversation_id}
+        parts = url.rstrip("/").split("/")
+        return parts[-1] if parts else generate_id()
+
+    def _extract_title(self, page: Page) -> str:
+        """Extract conversation title from page."""
+        try:
+            # Try to get title from og:title meta tag
+            og_title = page.query_selector('meta[property="og:title"]')
+            if og_title:
+                content = og_title.get_attribute("content")
+                if content:
+                    return content.replace("ChatGPT - ", "").strip()
+
+            # Fallback to page title
+            return page.title().replace("ChatGPT - ", "").strip()
+        except Exception:
+            return "Untitled Conversation"
+
+    def _extract_messages(self, page: Page) -> list[Block]:
+        """Extract messages from the page."""
+        messages: list[Block] = []
+
+        try:
+            # Find all message elements
+            message_elements = page.query_selector_all(
+                "[data-message-author-role]"
+            )
+
+            for i, element in enumerate(message_elements):
+                role = element.get_attribute("data-message-author-role")
+                if role not in ["user", "assistant"]:
+                    continue
+
+                text = element.inner_text().strip()
+                if not text:
+                    continue
+
+                block = Block(
+                    id=generate_id(),
+                    block_type=BlockType.TEXT,
+                    content=text,
+                    metadata={"role": role, "index": i}
+                )
+                messages.append(block)
+
+        except Exception as e:
+            self._logger.error("message_extraction_failed", error=str(e))
+
+        return messages
+
+
+class ChatGPTParserPlaywrightAdapter:
+    """
+    Adapter that wraps PlaywrightChatGPTParser to work with the async BaseParser.
+
+    Since the original architecture uses async/await but Playwright's main API
+    is sync, we provide this adapter for the sync use case.
+    """
+
+    def __init__(self, proxy_url: str | None = None):
+        self._parser = PlaywrightChatGPTParser(proxy_url=proxy_url)
+
+    def parse(self, url: str) -> Conversation:
+        """Synchronous parse method."""
+        return self._parser.parse(url)
