@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m py_compile app/domain/model/block.py app/domain/model/image_resource.py app/domain/model/knowledge_document.py app/domain/parser/registry.py app/domain/parser/base.py app/domain/service/interfaces.py app/infrastructure/exporter/markdown_exporter.py)"
+    ]
+  }
+}

@@ -1,0 +1,93 @@
+[project]
+name = "chat2md"
+version = "0.1.0"
+description = "AI Conversation Export System - Export chat sessions to Markdown"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [
+    { name = "chat2md", email = "chat2md@example.com" }
+]
+keywords = ["fastapi", "chatgpt", "gemini", "markdown", "export", "ai"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Framework :: FastAPI",
+]
+
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "pydantic>=2.9.0",
+    "pydantic-settings>=2.6.0",
+    "aiohttp>=3.10.0",
+    "beautifulsoup4>=4.12.0",
+    "lxml>=5.0.0",
+    "mistune>=3.0.0",
+    "aiofiles>=24.0.0",
+    "structlog>=24.0.0",
+    "dependency-injector>=4.43.0",
+    "python-multipart>=0.0.12",
+    "jinja2>=3.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=5.0.0",
+    "httpx>=0.27.0",
+    "ruff>=0.6.0",
+    "mypy>=1.13.0",
+    "pyright>=1.1.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/chat2md/chat2md"
+Repository = "https://github.com/chat2md/chat2md"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build-targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::PendingDeprecationWarning",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+    "B008",  # do not perform function calls in argument defaults
+    "C901",  # too complex
+]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true
