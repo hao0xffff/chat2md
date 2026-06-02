@@ -1,6 +1,6 @@
 """API routes for the export service."""
 from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from pathlib import Path
 
 from app.api.schemas import (

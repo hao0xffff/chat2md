@@ -4,6 +4,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -53,7 +54,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Include routers
+    # API routes with /api/v1 prefix
     app.include_router(router)
 
     # Static files
@@ -62,6 +63,11 @@ def create_app() -> FastAPI:
 
     # Templates
     templates = Jinja2Templates(directory=settings.templates_dir)
+
+    # Root web interface
+    @app.get("/", response_class=HTMLResponse)
+    async def index():
+        return templates.TemplateResponse("index.html", {"request": {}})
 
     return app
 

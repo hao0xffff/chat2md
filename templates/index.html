@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat2MD - AI 会话导出工具</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: #1a1a24;
+            --border-color: #2a2a3a;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0b0;
+            --text-muted: #606070;
+            --accent-chatgpt: #10a37f;
+            --accent-gemini: #ea4335;
+            --accent-doubao: #007dff;
+            --accent-primary: #6366f1;
+            --success: #22c55e;
+            --error: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 60px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .logo-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--accent-primary), #8b5cf6);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .logo h1 {
+            font-size: 32px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--text-primary), var(--text-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .tagline {
+            color: var(--text-secondary);
+            font-size: 16px;
+        }
+
+        /* Platform Cards */
+        .platforms {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 40px;
+        }
+
+        .platform-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .platform-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--accent-primary);
+        }
+
+        .platform-card.active {
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.2);
+        }
+
+        .platform-icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 12px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .platform-icon svg {
+            width: 28px;
+            height: 28px;
+        }
+
+        .platform-name {
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .platform-status {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .platform-card.chatgpt .platform-icon {
+            background: var(--accent-chatgpt);
+        }
+
+        .platform-card.gemini .platform-icon {
+            background: var(--accent-gemini);
+        }
+
+        .platform-card.doubao .platform-icon {
+            background: var(--accent-doubao);
+        }
+
+        /* Form */
+        .export-form {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 32px;
+            margin-bottom: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+        }
+
+        .form-input {
+            width: 100%;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 14px 16px;
+            font-size: 15px;
+            color: var(--text-primary);
+            transition: all 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+        }
+
+        .form-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .form-select {
+            width: 100%;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 14px 16px;
+            font-size: 15px;
+            color: var(--text-primary);
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23a0a0b0'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 20px;
+        }
+
+        .form-select:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 14px 24px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            width: 100%;
+            background: linear-gradient(135deg, var(--accent-primary), #8b5cf6);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Task List */
+        .task-list {
+            margin-bottom: 40px;
+        }
+
+        .task-list-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .task-list-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .task-count {
+            background: var(--bg-card);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .task-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .task-status {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .task-status.pending {
+            background: var(--bg-secondary);
+            color: var(--text-muted);
+        }
+
+        .task-status.running {
+            background: var(--accent-primary);
+            color: white;
+            animation: pulse 1.5s infinite;
+        }
+
+        .task-status.completed {
+            background: var(--success);
+            color: white;
+        }
+
+        .task-status.failed {
+            background: var(--error);
+            color: white;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .task-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .task-url {
+            font-size: 14px;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .task-meta {
+            display: flex;
+            gap: 16px;
+            margin-top: 4px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .task-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-sm {
+            padding: 8px 12px;
+            font-size: 13px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-sm:hover {
+            border-color: var(--accent-primary);
+            color: var(--text-primary);
+        }
+
+        .btn-sm.download {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+            color: white;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .toast.success {
+            border-color: var(--success);
+        }
+
+        .toast.error {
+            border-color: var(--error);
+        }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .platforms {
+                grid-template-columns: 1fr;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .task-meta {
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">📦</div>
+                <h1>Chat2MD</h1>
+            </div>
+            <p class="tagline">将 AI 会话导出为 Markdown 知识文档</p>
+        </header>
+
+        <section class="platforms">
+            <div class="platform-card chatgpt active" data-platform="chatgpt">
+                <div class="platform-icon">
+                    <svg viewBox="0 0 24 24" fill="white">
+                        <path d="M22.282 9.205a4.734 4.734 0 0 0-1.928-2.016 5.543 5.543 0 0 0-6.752-1.486 5.543 5.543 0 0 0-6.752 1.486 4.734 4.734 0 0 0-1.928 2.016 8.666 8.666 0 0 0-.703 3.735 10.27 10.27 0 0 0 .703 3.735 4.734 4.734 0 0 0 1.928 2.016 5.543 5.543 0 0 0 6.752-1.486 5.543 5.543 0 0 0 6.752 1.486 4.734 4.734 0 0 0 1.928-2.016 8.666 8.666 0 0 0 .703-3.735 10.27 10.27 0 0 0-.703-3.735zM15.916 19.574a3.039 3.039 0 0 1-2.443-2.027 9.576 9.576 0 0 1-.486-3.735 9.576 9.576 0 0 1 .486-3.735 3.039 3.039 0 0 1 2.443-2.027 3.039 3.039 0 0 1 2.443 2.027 9.576 9.576 0 0 1 .486 3.735 9.576 9.576 0 0 1-.486 3.735 3.039 3.039 0 0 1-2.443 2.027z"/>
+                    </svg>
+                </div>
+                <div class="platform-name">ChatGPT</div>
+                <div class="platform-status">OpenAI</div>
+            </div>
+            <div class="platform-card gemini" data-platform="gemini">
+                <div class="platform-icon">
+                    <svg viewBox="0 0 24 24" fill="white">
+                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                    </svg>
+                </div>
+                <div class="platform-name">Gemini</div>
+                <div class="platform-status">Google</div>
+            </div>
+            <div class="platform-card doubao" data-platform="doubao">
+                <div class="platform-icon">
+                    <svg viewBox="0 0 24 24" fill="white">
+                        <circle cx="12" cy="12" r="10"/>
+                    </svg>
+                </div>
+                <div class="platform-name">豆包</div>
+                <div class="platform-status">ByteDance</div>
+            </div>
+        </section>
+
+        <form class="export-form" id="exportForm">
+            <div class="form-group">
+                <label class="form-label">分享链接</label>
+                <input type="text" class="form-input" id="urlInput" placeholder="https://chatgpt.com/share/xxx 或 https://gemini.google.com/share/xxx" required>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">输出目录</label>
+                    <input type="text" class="form-input" id="outputDir" placeholder="留空使用默认目录">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">批量模式</label>
+                    <select class="form-select" id="modeSelect">
+                        <option value="single">单个导出</option>
+                        <option value="batch">批量导出</option>
+                    </select>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary" id="submitBtn">
+                <span>开始导出</span>
+            </button>
+        </form>
+
+        <section class="task-list" id="taskList">
+            <div class="task-list-header">
+                <h2 class="task-list-title">导出任务</h2>
+                <span class="task-count" id="taskCount">0</span>
+            </div>
+            <div id="taskItems">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📭</div>
+                    <p>暂无导出任务</p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <div class="toast" id="toast">
+        <span id="toastIcon"></span>
+        <span id="toastMessage"></span>
+    </div>
+
+    <script>
+        const API_BASE = '/api/v1';
+        let tasks = [];
+
+        // Platform selection
+        document.querySelectorAll('.platform-card').forEach(card => {
+            card.addEventListener('click', () => {
+                document.querySelectorAll('.platform-card').forEach(c => c.classList.remove('active'));
+                card.classList.add('active');
+            });
+        });
+
+        // Form submission
+        document.getElementById('exportForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            const url = document.getElementById('urlInput').value;
+            const outputDir = document.getElementById('outputDir').value;
+            const mode = document.getElementById('modeSelect').value;
+
+            btn.disabled = true;
+            btn.innerHTML = '<span>导出中...</span>';
+
+            try {
+                if (mode === 'single') {
+                    const response = await fetch(`${API_BASE}/export`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url, output_dir: outputDir || null })
+                    });
+                    const data = await response.json();
+                    addTask(data);
+                } else {
+                    const urls = url.split('\n').filter(u => u.trim());
+                    for (const u of urls) {
+                        const response = await fetch(`${API_BASE}/export`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ url: u.trim(), output_dir: outputDir || null })
+                        });
+                        const data = await response.json();
+                        addTask(data);
+                    }
+                }
+                showToast('success', '导出任务已创建');
+                document.getElementById('urlInput').value = '';
+            } catch (error) {
+                showToast('error', '创建导出任务失败');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<span>开始导出</span>';
+            }
+        });
+
+        function addTask(taskData) {
+            const task = {
+                task_id: taskData.task_id,
+                url: document.getElementById('urlInput').value,
+                status: 'pending',
+                progress: 0
+            };
+            tasks.unshift(task);
+            renderTasks();
+            pollTaskStatus(task.task_id);
+        }
+
+        async function pollTaskStatus(taskId) {
+            while (true) {
+                try {
+                    const response = await fetch(`${API_BASE}/task/${taskId}`);
+                    const data = await response.json();
+                    updateTask(taskId, data);
+                    if (data.status === 'completed' || data.status === 'failed') break;
+                    await new Promise(r => setTimeout(r, 1000));
+                } catch (error) {
+                    break;
+                }
+            }
+            renderTasks();
+        }
+
+        function updateTask(taskId, data) {
+            const task = tasks.find(t => t.task_id === taskId);
+            if (task) {
+                task.status = data.status;
+                task.progress = data.progress;
+                task.output_path = data.output_path;
+                task.error = data.error;
+            }
+            renderTasks();
+        }
+
+        function renderTasks() {
+            const container = document.getElementById('taskItems');
+            const countEl = document.getElementById('taskCount');
+
+            countEl.textContent = tasks.length;
+
+            if (tasks.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📭</div>
+                        <p>暂无导出任务</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = tasks.map(task => `
+                <div class="task-item">
+                    <div class="task-status ${task.status}">
+                        ${getStatusIcon(task.status)}
+                    </div>
+                    <div class="task-info">
+                        <div class="task-url">${task.url || task.task_id}</div>
+                        <div class="task-meta">
+                            <span>${task.status}</span>
+                            ${task.progress ? `<span>${task.progress}%</span>` : ''}
+                            ${task.output_path ? `<span>${task.output_path}</span>` : ''}
+                        </div>
+                    </div>
+                    <div class="task-actions">
+                        ${task.status === 'completed' ? '<button class="btn-sm download" onclick="downloadTask(\'' + task.task_id + '\')">下载</button>' : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getStatusIcon(status) {
+            const icons = {
+                pending: '⏳',
+                parsing: '🔄',
+                downloading: '⬇️',
+                exporting: '📝',
+                completed: '✅',
+                failed: '❌'
+            };
+            return icons[status] || '⏳';
+        }
+
+        async function downloadTask(taskId) {
+            window.open(`${API_BASE}/download/${taskId}`, '_blank');
+        }
+
+        function showToast(type, message) {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toastIcon');
+            const msg = document.getElementById('toastMessage');
+
+            icon.textContent = type === 'success' ? '✅' : '❌';
+            msg.textContent = message;
+            toast.className = `toast ${type} show`;
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
