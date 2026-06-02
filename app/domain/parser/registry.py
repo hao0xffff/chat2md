@@ -1,5 +1,5 @@
 """Parser registry - manages all registered parsers."""
-from typing import type
+from typing import Type
 
 from app.domain.parser.interface import ConversationParser
 from app.domain.value_objects import Platform
@@ -14,10 +14,10 @@ class ParserRegistry:
     registration of parsers. Each parser registers itself with
     a specific platform and can be retrieved by platform.
     """
-    _parsers: dict[str, type[ConversationParser]] = {}
+    _parsers: dict[str, Type[ConversationParser]] = {}
 
     @classmethod
-    def register(cls, platform: Platform, parser_class: type[ConversationParser]) -> None:
+    def register(cls, platform: Platform, parser_class: Type[ConversationParser]) -> None:
         """
         Register a parser for a specific platform.
 
@@ -28,7 +28,7 @@ class ParserRegistry:
         cls._parsers[platform.value] = parser_class
 
     @classmethod
-    def get(cls, platform: Platform) -> type[ConversationParser]:
+    def get(cls, platform: Platform) -> Type[ConversationParser]:
         """
         Get the parser class for a platform.
 
@@ -111,7 +111,7 @@ def register_parser(platform: Platform):
         class ChatGPTParser(BaseParser):
             ...
     """
-    def decorator(cls: type[ConversationParser]) -> type[ConversationParser]:
+    def decorator(cls: Type[ConversationParser]) -> Type[ConversationParser]:
         ParserRegistry.register(platform, cls)
         return cls
     return decorator

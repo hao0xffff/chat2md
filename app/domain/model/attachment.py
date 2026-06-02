@@ -18,7 +18,11 @@ class Attachment:
     url: str
     size: int | None = None
     local_path: str | None = None
-    metadata: dict[str, Any] = dataclass(field=False, default_factory=dict)
+    metadata: dict[str, Any] = None
+
+    def __post_init__(self):
+        if self.metadata is None:
+            self.metadata = {}
 
     @property
     def is_downloaded(self) -> bool:

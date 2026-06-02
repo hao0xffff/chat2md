@@ -1,6 +1,9 @@
 """Image downloader with concurrent download support."""
+from __future__ import annotations
+
 import asyncio
 from pathlib import Path
+from typing import Callable, Optional
 
 import aiofiles
 import structlog
@@ -111,7 +114,7 @@ class AiohttpDownloader(DownloaderInterface):
         resources: list[ImageResource],
         output_dir: Path,
         overwrite: bool = False,
-        progress_callback: callable | None = None
+        progress_callback: Optional[Callable[[int, int], None]] = None
     ) -> list[DownloadResult]:
         """
         Download multiple resources concurrently.

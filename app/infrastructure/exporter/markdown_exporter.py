@@ -1,5 +1,8 @@
 """Markdown exporter - exports KnowledgeDocument to Markdown files."""
+from __future__ import annotations
+
 from pathlib import Path
+from typing import Callable, Optional
 
 import structlog
 
@@ -101,7 +104,7 @@ class MarkdownExporter(ExporterInterface):
         documents: list[KnowledgeDocument],
         output_dir: Path,
         include_images: bool = True,
-        progress_callback: callable | None = None
+        progress_callback: Optional[Callable[[int, int], None]] = None
     ) -> list[ExportResult]:
         """
         Export multiple knowledge documents.

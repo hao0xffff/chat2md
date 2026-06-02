@@ -2,7 +2,13 @@
   "permissions": {
     "allow": [
       "Bash(python -m py_compile app/domain/model/block.py app/domain/model/image_resource.py app/domain/model/knowledge_document.py app/domain/parser/registry.py app/domain/parser/base.py app/domain/service/interfaces.py app/infrastructure/exporter/markdown_exporter.py)",
-      "Bash(git rm *)"
+      "Bash(git rm *)",
+      "Bash(uv sync *)",
+      "Bash(python -m pip install aiohttp beautifulsoup4 lxml aiofiles structlog pydantic pydantic-settings)",
+      "Bash(python test_fetch.py)",
+      "Bash(python -c \"import sys; print\\(sys.version\\)\")",
+      "Bash(python -c \"from __future__ import annotations; print\\('future annotations enabled'\\)\")",
+      "Bash(python test_parse.py)"
     ]
   }
 }

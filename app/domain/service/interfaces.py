@@ -1,10 +1,14 @@
 """Domain service interfaces - define service contracts."""
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING, Callable, Optional
 
-from app.domain.model.image_resource import ImageResource
-from app.domain.model.knowledge_document import KnowledgeDocument
+if TYPE_CHECKING:
+    from app.domain.model.image_resource import ImageResource
+    from app.domain.model.knowledge_document import KnowledgeDocument
 
 
 @dataclass
@@ -57,7 +61,7 @@ class DownloaderInterface(ABC):
         resources: list[ImageResource],
         output_dir: Path,
         overwrite: bool = False,
-        progress_callback: callable | None = None
+        progress_callback: Optional[Callable[[int, int], None]] = None
     ) -> list[DownloadResult]:
         """
         Download multiple resources concurrently.
@@ -103,7 +107,7 @@ class ExporterInterface(ABC):
         documents: list[KnowledgeDocument],
         output_dir: Path,
         include_images: bool = True,
-        progress_callback: callable | None = None
+        progress_callback: Optional[Callable[[int, int], None]] = None
     ) -> list[ExportResult]:
         """
         Export multiple knowledge documents.
