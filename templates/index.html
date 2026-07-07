@@ -872,6 +872,7 @@
                             <span>${safeStatus}</span>
                             ${task.progress ? `<span>${task.progress}%</span>` : ''}
                             ${safeOutputPath ? `<span>${safeOutputPath}</span>` : ''}
+                            ${task.error ? `<span class="error">${escapeHtml(task.error)}</span>` : ''}
                         </div>
                     </div>
                     <div class="task-actions">

@@ -202,7 +202,8 @@ DEFAULT_CREATE_MESSAGES=true
 # 对象存储字段用于部署发现和后续扩展。
 STORAGE_BACKEND=local
 ALLOW_CUSTOM_OUTPUT_DIR=true
-# 相对路径会解析到项目目录下；绝对自定义路径必须位于允许根目录中。
+# 空数组表示 ALLOW_CUSTOM_OUTPUT_DIR=true 时允许任意本地自定义路径；
+# 生产环境可配置根目录白名单来限制绝对路径。
 ALLOWED_OUTPUT_ROOTS=[]
 OBJECT_STORAGE_BUCKET=
 OBJECT_STORAGE_PREFIX=chat-to-markdown

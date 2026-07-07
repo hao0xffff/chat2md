@@ -177,10 +177,11 @@ class ExportService:
             else requested.resolve()
         )
 
+        if not settings.allowed_output_roots:
+            return resolved
+
         allowed_roots = [
-            Path.cwd().resolve(),
-            default_output_dir.resolve(),
-            *[path.expanduser().resolve() for path in settings.allowed_output_roots],
+            path.expanduser().resolve() for path in settings.allowed_output_roots
         ]
         if not any(self._is_relative_to(resolved, root) for root in allowed_roots):
             roots = ", ".join(str(root) for root in allowed_roots)
