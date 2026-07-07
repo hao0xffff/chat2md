@@ -11,6 +11,7 @@ from app.domain.model.conversation import Conversation
 from app.domain.model.knowledge_document import KnowledgeDocument
 from app.domain.parser.registry import ParserRegistry
 from app.domain.service.interfaces import DownloaderInterface, ExporterInterface
+from app.common.exceptions import ValidationException
 from app.common.utils import sanitize_conversation_title
 
 logger = structlog.get_logger()
@@ -104,10 +105,7 @@ class ExportService:
 
             # Determine output directory
             default_output_dir = settings.local_output_dir or settings.output_dir
-            if settings.allow_custom_output_dir and task.output_dir:
-                base_output_dir = Path(task.output_dir)
-            else:
-                base_output_dir = default_output_dir
+            base_output_dir = self._resolve_output_dir(task.output_dir, default_output_dir)
 
             # Mark images for download
             images = list(conversation.images)
@@ -152,7 +150,7 @@ class ExportService:
                 task.mark_completed(
                     output_path=str(export_result.output_path),
                     message_count=len(conversation.blocks),
-                    image_count=len(images)
+                    image_count=export_result.image_count,
                 )
             else:
                 task.mark_failed(export_result.error or "Export failed")
@@ -166,6 +164,38 @@ class ExportService:
             if self._task_repo:
                 await self._task_repo.save(task)
             return task
+
+    def _resolve_output_dir(self, output_dir: str | None, default_output_dir: Path) -> Path:
+        """Resolve and validate the export base directory."""
+        if not (settings.allow_custom_output_dir and output_dir):
+            return default_output_dir
+
+        requested = Path(output_dir).expanduser()
+        resolved = (
+            (Path.cwd() / requested).resolve()
+            if not requested.is_absolute()
+            else requested.resolve()
+        )
+
+        allowed_roots = [
+            Path.cwd().resolve(),
+            default_output_dir.resolve(),
+            *[path.expanduser().resolve() for path in settings.allowed_output_roots],
+        ]
+        if not any(self._is_relative_to(resolved, root) for root in allowed_roots):
+            roots = ", ".join(str(root) for root in allowed_roots)
+            raise ValidationException(
+                f"Output directory is outside allowed roots: {resolved}. Allowed roots: {roots}",
+                field="output_dir",
+            )
+        return resolved
+
+    def _is_relative_to(self, path: Path, root: Path) -> bool:
+        try:
+            path.relative_to(root)
+            return True
+        except ValueError:
+            return False
 
     def _conversation_to_document(self, conversation: Conversation) -> KnowledgeDocument:
         """Convert a Conversation to a KnowledgeDocument."""

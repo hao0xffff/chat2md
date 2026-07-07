@@ -1,6 +1,5 @@
 """Playwright-based Gemini parser for share links."""
 import time
-from typing import Any
 
 from playwright.sync_api import sync_playwright, Page
 
@@ -49,13 +48,19 @@ class PlaywrightGeminiParser:
                 self._logger.info("navigating_to_url", url=url)
                 page.goto(url, timeout=60000)
                 page.wait_for_load_state("domcontentloaded")
+                self._ensure_supported_page(page)
+                page.wait_for_selector('[class*="turn"]', timeout=settings.parser_timeout * 1000)
 
-                time.sleep(5)
+                time.sleep(1)
+                self._ensure_supported_page(page)
 
                 conversation_id = self._extract_conversation_id(url)
                 title = self._extract_title(page)
 
                 messages, image_data = self._extract_messages(page)
+                messages = self._deduplicate_blocks(messages)
+                if not messages:
+                    raise ValueError("No Gemini messages found in share page")
 
                 images = []
                 for img_info in image_data:
@@ -104,6 +109,18 @@ class PlaywrightGeminiParser:
         except Exception:
             return "Untitled Gemini Conversation"
 
+    def _ensure_supported_page(self, page: Page) -> None:
+        """Fail early on bot checks and non-conversation pages."""
+        title = (page.title() or "").strip().lower()
+        challenge_markers = [
+            "just a moment",
+            "checking your browser",
+            "verify you are human",
+            "attention required",
+        ]
+        if any(marker in title for marker in challenge_markers):
+            raise ValueError(f"Gemini share page is not accessible: {page.title()}")
+
     def _extract_messages(self, page: Page) -> tuple[list[Block], list[dict]]:
         """
         Extract messages and images from the page.
@@ -125,7 +142,7 @@ class PlaywrightGeminiParser:
                 img_elements = turn.query_selector_all("img")
                 for img_idx, img in enumerate(img_elements):
                     img_url = img.get_attribute("src")
-                    if img_url and img_url.startswith("http"):
+                    if self._is_content_image_url(img_url):
                         image_id = f"img_{turn_idx}_{img_idx}"
                         image_urls.append({
                             "id": image_id,
@@ -190,3 +207,28 @@ class PlaywrightGeminiParser:
             self._logger.error("message_extraction_failed", error=str(e))
 
         return messages, image_urls
+
+    def _deduplicate_blocks(self, blocks: list[Block]) -> list[Block]:
+        """Remove exact duplicate role/content pairs created by broad DOM matches."""
+        seen: set[tuple[str, str]] = set()
+        deduped: list[Block] = []
+        for block in blocks:
+            role = str(block.metadata.get("role", ""))
+            content = (block.content or "").strip()
+            key = (role, content)
+            if not content or key in seen:
+                continue
+            seen.add(key)
+            deduped.append(block)
+        return deduped
+
+    def _is_content_image_url(self, img_url: str | None) -> bool:
+        """Return true for likely conversation image assets."""
+        if not img_url or not img_url.startswith("http"):
+            return False
+        url = img_url.lower()
+        excluded = ("avatar", "favicon", "logo", "icon", "sprite")
+        if any(part in url for part in excluded):
+            return False
+        included = ("/image", ".png", ".jpg", ".jpeg", ".webp", ".gif", "usercontent")
+        return any(part in url for part in included)

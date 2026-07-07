@@ -105,6 +105,7 @@ class StorageConfigResponse(BaseModel):
     backend: str
     output_dir: str
     local_output_dir: str | None = None
+    allowed_output_roots: list[str] = Field(default_factory=list)
     allow_custom_output_dir: bool
     object_storage_bucket: str | None = None
     object_storage_prefix: str
@@ -163,6 +164,13 @@ class IntegrationExampleResponse(BaseModel):
     python_example: str
 
 
+class TaskRepositoryConfigResponse(BaseModel):
+    """Runtime task repository configuration."""
+
+    backend: str
+    path: str | None = None
+
+
 class ExportConfigResponse(BaseModel):
     """Runtime export configuration for API/UI clients."""
 
@@ -173,5 +181,6 @@ class ExportConfigResponse(BaseModel):
     swagger: SwaggerInfoResponse
     storage: StorageConfigResponse
     auth: AuthConfigResponse
+    task_repository: TaskRepositoryConfigResponse
     default_options: ExportOptionsSchema
     platforms: list[PlatformInfo]

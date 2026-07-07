@@ -60,9 +60,9 @@ class MarkdownExporter(ExporterInterface):
             doc_dir = output_dir / title
             ensure_dir(doc_dir)
 
-            # Create images directory if needed
+            # Create images directory when this export includes image assets.
             images_dir = doc_dir / settings.markdown_image_prefix
-            if include_images and document.images:
+            if include_images:
                 ensure_dir(images_dir)
 
             files_written: list[Path] = []
@@ -92,7 +92,12 @@ class MarkdownExporter(ExporterInterface):
             if options.create_messages:
                 messages_path = doc_dir / "messages.md"
                 messages_path.write_text(
-                    self._build_messages(document, include_images, settings.markdown_image_prefix),
+                    self._build_messages(
+                        document,
+                        include_images,
+                        settings.markdown_image_prefix,
+                        options,
+                    ),
                     encoding="utf-8",
                 )
                 files_written.append(messages_path)
@@ -107,12 +112,7 @@ class MarkdownExporter(ExporterInterface):
 
             # Count actual files
             file_count = len(files_written)
-            image_count = 0
-
-            if include_images:
-                for img in document.images:
-                    if img.is_downloaded and img.local_path:
-                        image_count += 1
+            image_count = self._exported_image_count(document, include_images)
 
             self._logger.info(
                 "export_completed",
@@ -189,7 +189,7 @@ class MarkdownExporter(ExporterInterface):
         lines = []
 
         if options.include_frontmatter:
-            lines.extend(self._frontmatter(document, "conversation", options))
+            lines.extend(self._frontmatter(document, "conversation", options, include_images))
             lines.append("")
 
         # Title
@@ -205,7 +205,8 @@ class MarkdownExporter(ExporterInterface):
                 lines.append(f"**Source URL**: {source_url}")
             lines.append(f"**Exported**: {document.created_at.isoformat()}")
             lines.append(f"**Blocks**: {len(document.blocks)}")
-            lines.append(f"**Images**: {len(document.images)}")
+            lines.append(f"**Exported Images**: {self._exported_image_count(document, include_images)}")
+            lines.append(f"**Source Images**: {len(document.images)}")
             lines.append("")
 
         # Separator
@@ -213,6 +214,9 @@ class MarkdownExporter(ExporterInterface):
         lines.append("")
         lines.append("## Conversation")
         lines.append("")
+
+        if options.format == MarkdownFormat.COMPACT.value:
+            return self._build_compact_markdown(document, include_images, image_prefix, lines)
 
         # Process blocks in order
         for index, block in enumerate(document.blocks, start=1):
@@ -222,6 +226,10 @@ class MarkdownExporter(ExporterInterface):
                 lines.append("")
                 lines.append(f"- block_id: `{block.id}`")
                 lines.append(f"- block_type: `{block.block_type.value}`")
+                lines.append("")
+            elif options.format == MarkdownFormat.TRANSCRIPT.value:
+                role = block.metadata.get("role", "content").upper()
+                lines.append(f"### {role}")
                 lines.append("")
             md = self._format_block(block, include_images, image_prefix)
             if md:
@@ -235,9 +243,11 @@ class MarkdownExporter(ExporterInterface):
         document: KnowledgeDocument,
         document_type: str,
         options: ExportOptions,
+        include_images: bool,
     ) -> list[str]:
         """Build YAML frontmatter for markdown files."""
         source_url = str(document.metadata.get("source_url", ""))
+        exported_image_count = self._exported_image_count(document, include_images)
         return [
             "---",
             f'title: "{self._yaml_escape(document.title)}"',
@@ -247,7 +257,8 @@ class MarkdownExporter(ExporterInterface):
             f'conversation_url: "{self._yaml_escape(source_url)}"',
             f"export_format: {options.format}",
             f"block_count: {len(document.blocks)}",
-            f"image_count: {len(document.images)}",
+            f"image_count: {exported_image_count}",
+            f"source_image_count: {len(document.images)}",
             f'created_at: "{document.created_at.isoformat()}"',
             "---",
         ]
@@ -262,7 +273,7 @@ class MarkdownExporter(ExporterInterface):
         """Build an index file optimized for agents and workflows."""
         lines = []
         if options.include_frontmatter:
-            lines.extend(self._frontmatter(document, "index", options))
+            lines.extend(self._frontmatter(document, "index", options, include_images))
             lines.append("")
         lines.extend([
             f"# {document.title}",
@@ -292,7 +303,8 @@ class MarkdownExporter(ExporterInterface):
             "## Counts",
             "",
             f"- blocks: {len(document.blocks)}",
-            f"- images: {len(document.images)}",
+            f"- exported_images: {self._exported_image_count(document, include_images)}",
+            f"- source_images: {len(document.images)}",
         ])
         return "\n".join(lines)
 
@@ -301,9 +313,14 @@ class MarkdownExporter(ExporterInterface):
         document: KnowledgeDocument,
         include_images: bool,
         image_prefix: str,
+        options: ExportOptions,
     ) -> str:
         """Build a message-by-message markdown file for retrieval systems."""
-        lines = [f"# Messages - {document.title}", ""]
+        lines: list[str] = []
+        if options.include_frontmatter:
+            lines.extend(self._frontmatter(document, "messages", options, include_images))
+            lines.append("")
+        lines.extend([f"# Messages - {document.title}", ""])
         for index, block in enumerate(document.blocks, start=1):
             role = block.metadata.get("role", "content")
             lines.extend([
@@ -329,7 +346,7 @@ class MarkdownExporter(ExporterInterface):
         """Build a markdown manifest with stable machine-readable fields."""
         lines = []
         if options.include_frontmatter:
-            lines.extend(self._frontmatter(document, "manifest", options))
+            lines.extend(self._frontmatter(document, "manifest", options, include_images))
             lines.append("")
         lines.extend([
             f"# Manifest - {document.title}",
@@ -339,6 +356,8 @@ class MarkdownExporter(ExporterInterface):
             f"- format: `{options.format}`",
             f"- include_images: `{str(include_images).lower()}`",
             f"- include_metadata: `{str(options.include_metadata).lower()}`",
+            f"- exported_image_count: `{self._exported_image_count(document, include_images)}`",
+            f"- source_image_count: `{len(document.images)}`",
             "",
             "## Files",
             "",
@@ -351,6 +370,33 @@ class MarkdownExporter(ExporterInterface):
                 local = image.local_filename or ""
                 lines.append(f"- id: `{image.id}` url: {image.url} local: `{local}`")
         return "\n".join(lines)
+
+    def _build_compact_markdown(
+        self,
+        document: KnowledgeDocument,
+        include_images: bool,
+        image_prefix: str,
+        lines: list[str],
+    ) -> str:
+        """Build a compact transcript for small context windows."""
+        compact_lines = lines[:]
+        for block in document.blocks:
+            role = block.metadata.get("role", "content").upper()
+            md = (
+                block.content or ""
+                if block.is_text
+                else self._format_block(block, include_images, image_prefix)
+            )
+            if md:
+                compact_lines.append(f"**{role}:** {md.replace(chr(10), ' ').strip()}")
+                compact_lines.append("")
+        return "\n".join(compact_lines)
+
+    def _exported_image_count(self, document: KnowledgeDocument, include_images: bool) -> int:
+        """Count image files that are actually part of this export."""
+        if not include_images:
+            return 0
+        return sum(1 for img in document.images if img.is_downloaded and img.local_path)
 
     def _yaml_escape(self, value: str) -> str:
         """Escape a value for a simple quoted YAML scalar."""

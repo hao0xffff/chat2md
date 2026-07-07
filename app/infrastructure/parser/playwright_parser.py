@@ -1,9 +1,7 @@
 """Playwright-based ChatGPT parser for share links."""
-import asyncio
 import time
-from typing import Any
 
-from playwright.sync_api import sync_playwright, Browser, Page
+from playwright.sync_api import sync_playwright, Page
 
 import structlog
 
@@ -50,9 +48,15 @@ class PlaywrightChatGPTParser:
                 self._logger.info("navigating_to_url", url=url)
                 page.goto(url, timeout=60000)
                 page.wait_for_load_state("domcontentloaded")
+                self._ensure_supported_page(page)
+                page.wait_for_selector(
+                    "[data-message-author-role]",
+                    timeout=settings.parser_timeout * 1000,
+                )
 
                 # Wait for dynamic content to load
-                time.sleep(3)
+                time.sleep(1)
+                self._ensure_supported_page(page)
 
                 # Extract conversation metadata
                 conversation_id = self._extract_conversation_id(url)
@@ -60,6 +64,8 @@ class PlaywrightChatGPTParser:
 
                 # Extract messages and images
                 messages, image_data = self._extract_messages(page)
+                if not messages:
+                    raise ValueError("No ChatGPT messages found in share page")
 
                 # Build image resources
                 images = []
@@ -114,6 +120,18 @@ class PlaywrightChatGPTParser:
         except Exception:
             return "Untitled Conversation"
 
+    def _ensure_supported_page(self, page: Page) -> None:
+        """Fail early on bot checks and non-conversation pages."""
+        title = (page.title() or "").strip().lower()
+        challenge_markers = [
+            "just a moment",
+            "checking your browser",
+            "verify you are human",
+            "attention required",
+        ]
+        if any(marker in title for marker in challenge_markers):
+            raise ValueError(f"ChatGPT share page is not accessible: {page.title()}")
+
     def _extract_messages(self, page: Page) -> tuple[list[Block], list[dict]]:
         """
         Extract messages and images from the page.
@@ -142,7 +160,7 @@ class PlaywrightChatGPTParser:
                 img_elements = element.query_selector_all("img")
                 for j, img in enumerate(img_elements):
                     img_url = img.get_attribute("src")
-                    if img_url and img_url.startswith("http"):
+                    if self._is_content_image_url(img_url):
                         image_id = f"img_{i}_{j}"
                         image_urls.append({
                             "id": image_id,
@@ -176,6 +194,26 @@ class PlaywrightChatGPTParser:
             self._logger.error("message_extraction_failed", error=str(e))
 
         return messages, image_urls
+
+    def _is_content_image_url(self, img_url: str | None) -> bool:
+        """Return true for likely user-visible message images."""
+        if not img_url or not img_url.startswith("http"):
+            return False
+        url = img_url.lower()
+        excluded = ("avatar", "favicon", "logo", "icon", "sprite", "data:image")
+        if any(part in url for part in excluded):
+            return False
+        included = (
+            "oaiusercontent",
+            "oaidalleapiprodscus",
+            "/image",
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".webp",
+            ".gif",
+        )
+        return any(part in url for part in included)
 
 
 class ChatGPTParserPlaywrightAdapter:

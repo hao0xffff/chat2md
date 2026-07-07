@@ -1,6 +1,7 @@
 """Unit tests for API schemas."""
 import pytest
 from datetime import datetime
+from pydantic import ValidationError
 
 from app.api.schemas import (
     ExportRequest,
@@ -27,7 +28,7 @@ class TestExportRequest:
 
     def test_url_must_be_string(self):
         """Test URL must be string."""
-        with pytest.raises(ValidationError if hasattr(imported_module('pydantic'), 'ValidationError') else ValueError):
+        with pytest.raises(ValidationError):
             ExportRequest(url=123)
 
 

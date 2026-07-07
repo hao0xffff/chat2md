@@ -1,7 +1,9 @@
 """Integration tests for export API."""
 import pytest
+import zipfile
 from httpx import AsyncClient, ASGITransport
 
+from app.api.routes import _build_export_archive
 from app.main import app
 
 
@@ -74,3 +76,18 @@ class TestExportAPI:
             response = await client.get(f"/api/v1/download/{task_id}")
             # Task should be incomplete, so 400
             assert response.status_code == 400
+
+    def test_build_export_archive(self, tmp_path):
+        """Directory exports are packaged as zip archives."""
+        export_dir = tmp_path / "Conversation"
+        export_dir.mkdir()
+        (export_dir / "index.md").write_text("# Index", encoding="utf-8")
+        nested = export_dir / "images"
+        nested.mkdir()
+        (nested / "image.png").write_bytes(b"image")
+
+        archive_path = _build_export_archive("task_123", export_dir)
+
+        assert archive_path.exists()
+        with zipfile.ZipFile(archive_path) as archive:
+            assert sorted(archive.namelist()) == ["images/image.png", "index.md"]

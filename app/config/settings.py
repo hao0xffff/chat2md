@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     # Storage
     storage_backend: str = "local"
     allow_custom_output_dir: bool = True
+    allowed_output_roots: list[Path] = []
     local_output_dir: Path | None = None
     object_storage_bucket: str | None = None
     object_storage_prefix: str = "chat-to-markdown"
@@ -38,6 +39,10 @@ class Settings(BaseSettings):
     object_storage_region: str | None = None
     object_storage_access_key_env: str = "STORAGE_ACCESS_KEY_ID"
     object_storage_secret_key_env: str = "STORAGE_SECRET_ACCESS_KEY"
+
+    # Task repository
+    task_repository_backend: str = "file"
+    task_repository_path: Path = Path("output/.chat2md_tasks/tasks.json")
 
     # Optional SSO metadata for deployments that protect the service at the edge.
     auth_mode: str = "none"

@@ -75,7 +75,7 @@ class Block:
         elif self.is_quote:
             content = self.content or ""
             level = self.level or 1
-            prefix = ">" * level
+            prefix = " ".join([">"] * level)
             return f"{prefix} {content}"
         elif self.is_list:
             return self._format_list()

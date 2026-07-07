@@ -10,6 +10,7 @@
 - 可配置导出：支持输出目录、格式、图片、Frontmatter、index、manifest、messages 文件开关。
 - 可配置链接种类：通过环境变量配置启用平台和 URL 匹配规则。
 - AI 可读文档包：默认输出 `index.md`、`conversation.md`、`messages.md`、`manifest.md` 和图片目录。
+- 可集成任务状态：默认用文件仓储保存任务状态，服务重启后仍可查询已记录任务。
 
 ## 当前平台
 
@@ -107,6 +108,8 @@ curl http://localhost:8000/api/v1/task/{task_id}
 curl http://localhost:8000/api/v1/download/{task_id}
 ```
 
+如果导出结果是目录，该接口返回 `.zip` 包；如果导出结果是单文件，则直接返回该文件。
+
 ### 查看运行配置
 
 ```bash
@@ -199,12 +202,18 @@ DEFAULT_CREATE_MESSAGES=true
 # 对象存储字段用于部署发现和后续扩展。
 STORAGE_BACKEND=local
 ALLOW_CUSTOM_OUTPUT_DIR=true
+# 相对路径会解析到项目目录下；绝对自定义路径必须位于允许根目录中。
+ALLOWED_OUTPUT_ROOTS=[]
 OBJECT_STORAGE_BUCKET=
 OBJECT_STORAGE_PREFIX=chat-to-markdown
 OBJECT_STORAGE_ENDPOINT=
 OBJECT_STORAGE_REGION=
 OBJECT_STORAGE_ACCESS_KEY_ENV=STORAGE_ACCESS_KEY_ID
 OBJECT_STORAGE_SECRET_KEY_ENV=STORAGE_SECRET_ACCESS_KEY
+
+# 任务仓储。file 模式会把任务状态保存到 JSON 文件，方便重启后查询。
+TASK_REPOSITORY_BACKEND=file
+TASK_REPOSITORY_PATH=output/.chat2md_tasks/tasks.json
 
 # 如果服务部署在 SSO 网关后，可以暴露这些元数据给集成页面。
 AUTH_MODE=none
@@ -215,7 +224,7 @@ SSO_LOGIN_URL=
 ## 测试
 
 ```bash
-pytest tests/
+python -B -m pytest tests/ -p no:cacheprovider
 ```
 
 如果本机装了 `uv`：

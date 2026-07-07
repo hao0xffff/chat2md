@@ -19,10 +19,10 @@ class TestChatGPTParser:
         from app.domain.parser.base import BaseParser
         assert issubclass(ChatGPTParser, BaseParser)
 
-    def test_parser_has_adapter(self):
-        """Test that parser has adapter attribute."""
+    def test_parser_has_lazy_playwright_parser(self):
+        """Test that parser has lazy Playwright parser state."""
         parser = ChatGPTParser()
-        assert hasattr(parser, "_adapter")
+        assert hasattr(parser, "_playwright_parser")
 
     @pytest.mark.asyncio
     async def test_parse_validates_url(self):

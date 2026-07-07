@@ -1,7 +1,6 @@
 """ChatGPT parser implementation using Playwright for modern SPA."""
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any
 
 import structlog
 

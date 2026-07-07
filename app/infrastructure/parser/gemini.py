@@ -1,17 +1,14 @@
 """Gemini parser implementation using Playwright for modern SPA."""
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any
 
 import structlog
 
 from app.domain.model.conversation import Conversation
-from app.domain.model.block import Block, BlockType
 from app.domain.parser.base import BaseParser
 from app.domain.parser.registry import register_parser
 from app.domain.value_objects import Platform
 from app.common.exceptions import ParserException
-from app.common.utils import generate_id
 from app.config.settings import settings
 
 logger = structlog.get_logger()

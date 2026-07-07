@@ -3,11 +3,20 @@ from dependency_injector import containers, providers
 
 from app.application.export_service import ExportService
 from app.application.task_service import InMemoryTaskRepository, TaskService
+from app.config.settings import settings
 from app.infrastructure.client.http_client import HttpClient
 from app.infrastructure.downloader.aiohttp_downloader import AiohttpDownloader
 from app.infrastructure.exporter.markdown_exporter import MarkdownExporter
+from app.infrastructure.repository.file_task_repo import FileTaskRepository
 from app.infrastructure.repository.in_memory_conversation_repo import InMemoryConversationRepository
 from app.domain.parser.registry import ParserRegistry
+
+
+def create_task_repository():
+    """Create the configured task repository."""
+    if settings.task_repository_backend.lower() == "file":
+        return FileTaskRepository(settings.task_repository_path)
+    return InMemoryTaskRepository()
 
 
 class Container(containers.DeclarativeContainer):
@@ -18,7 +27,7 @@ class Container(containers.DeclarativeContainer):
 
     # Repositories
     conversation_repository = providers.Singleton(InMemoryConversationRepository)
-    task_repository = providers.Singleton(InMemoryTaskRepository)
+    task_repository = providers.Singleton(create_task_repository)
 
     # Services
     task_service = providers.Factory(

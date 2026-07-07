@@ -27,9 +27,8 @@ class TestChatGPTAdapter:
 
     def test_adapt_empty_html(self, adapter):
         """Test adapt with empty HTML."""
-        result = adapter.adapt("<html></html>")
-        # Empty HTML should not raise but may return incomplete conversation
-        # Actual behavior depends on implementation
+        with pytest.raises(ValueError):
+            adapter.adapt("<html></html>")
 
     def test_adapt_with_mock_data(self, adapter):
         """Test adapt with mock ChatGPT data structure."""

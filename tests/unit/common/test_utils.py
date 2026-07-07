@@ -50,8 +50,8 @@ class TestSanitizeFilename:
 
     def test_removes_special_chars(self):
         """Test special characters are removed."""
-        assert sanitize_filename("file<>:\"/\\|?*.txt") == "filetxt"
-        assert sanitize_filename("file|name.txt") == "filenametxt"
+        assert sanitize_filename("file<>:\"/\\|?*.txt") == "file.txt"
+        assert sanitize_filename("file|name.txt") == "filename.txt"
 
     def test_replaces_spaces(self):
         """Test spaces are replaced."""

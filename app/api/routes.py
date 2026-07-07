@@ -1,4 +1,7 @@
 """API routes for the export service."""
+import zipfile
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException
 from fastapi.responses import FileResponse
 from pathlib import Path
@@ -19,6 +22,7 @@ from app.api.schemas import (
     PlatformInfo,
     StorageConfigResponse,
     SwaggerInfoResponse,
+    TaskRepositoryConfigResponse,
 )
 from app.api.dependencies import Container, container
 from app.application.export_service import ExportService
@@ -52,6 +56,7 @@ def _storage_config() -> StorageConfigResponse:
         backend=settings.storage_backend,
         output_dir=str(settings.output_dir),
         local_output_dir=str(settings.local_output_dir) if settings.local_output_dir else None,
+        allowed_output_roots=[str(path) for path in settings.allowed_output_roots],
         allow_custom_output_dir=settings.allow_custom_output_dir,
         object_storage_bucket=settings.object_storage_bucket,
         object_storage_prefix=settings.object_storage_prefix,
@@ -68,6 +73,16 @@ def _auth_config() -> AuthConfigResponse:
         mode=settings.auth_mode,
         sso_provider=settings.sso_provider,
         sso_login_url=settings.sso_login_url,
+    )
+
+
+def _task_repository_config() -> TaskRepositoryConfigResponse:
+    """Return task persistence configuration."""
+    return TaskRepositoryConfigResponse(
+        backend=settings.task_repository_backend,
+        path=str(settings.task_repository_path)
+        if settings.task_repository_backend.lower() == "file"
+        else None,
     )
 
 
@@ -256,18 +271,25 @@ async def download_export(
             filename=output_path.name,
             media_type="application/octet-stream"
         )
-    else:
-        # Return directory listing
-        files = []
-        for f in output_path.rglob("*"):
-            if f.is_file():
-                rel_path = f.relative_to(output_path.parent)
-                files.append(str(rel_path))
-        return {
-            "task_id": task_id,
-            "output_dir": str(output_path),
-            "files": files,
-        }
+
+    archive_path = _build_export_archive(task_id, output_path)
+    return FileResponse(
+        path=archive_path,
+        filename=archive_path.name,
+        media_type="application/zip",
+    )
+
+
+def _build_export_archive(task_id: str, output_path: Path) -> Path:
+    """Create a zip archive for an exported directory."""
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    archive_path = output_path.parent / f"{output_path.name}-{task_id}-{timestamp}.zip"
+    with zipfile.ZipFile(archive_path, mode="w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for file_path in sorted(output_path.rglob("*")):
+            if not file_path.is_file() or file_path.is_symlink():
+                continue
+            archive.write(file_path, arcname=file_path.relative_to(output_path).as_posix())
+    return archive_path
 
 
 @router.get("/health")
@@ -317,6 +339,7 @@ async def get_export_config() -> ExportConfigResponse:
         swagger=_swagger_info(),
         storage=_storage_config(),
         auth=_auth_config(),
+        task_repository=_task_repository_config(),
         default_options=ExportOptionsSchema(),
         platforms=[PlatformInfo(**item) for item in ParserRegistry.available_platforms()],
     )

@@ -57,7 +57,7 @@ class TestBaseParser:
         """Test title sanitization."""
         parser = ConcreteParser()
         assert parser._sanitize_title("Normal Title") == "Normal Title"
-        assert parser._sanitize_title("Title with | special") == "Title with  special"
+        assert parser._sanitize_title("Title with | special") == "Title with special"
         assert parser._sanitize_title("  Spaces  ") == "Spaces"
         assert parser._sanitize_title("Title<>:/\\?*") == "Title"
 

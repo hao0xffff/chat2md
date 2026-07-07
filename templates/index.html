@@ -695,6 +695,9 @@
                 <span>允许请求覆盖</span><span>${config.storage.allow_custom_output_dir ? '是' : '否'}</span>
                 <span>对象存储桶</span><span>${config.storage.object_storage_bucket || '未配置'}</span>
                 <span>对象存储前缀</span><span>${config.storage.object_storage_prefix}</span>
+                <span>允许根目录</span><span>${config.storage.allowed_output_roots.length ? config.storage.allowed_output_roots.join(', ') : '项目目录 / 默认输出目录'}</span>
+                <span>任务仓储</span><span>${config.task_repository.backend}</span>
+                <span>任务文件</span><span>${config.task_repository.path || '不适用'}</span>
             `;
             document.getElementById('authStatus').innerHTML = `
                 <span>模式</span><span>${config.auth.mode}</span>
@@ -853,24 +856,30 @@
                 return;
             }
 
-            container.innerHTML = tasks.map(task => `
+            container.innerHTML = tasks.map(task => {
+                const safeUrl = escapeHtml(task.url || task.task_id);
+                const safeStatus = escapeHtml(task.status);
+                const safeOutputPath = task.output_path ? escapeHtml(task.output_path) : '';
+                const safeTaskId = escapeHtml(task.task_id);
+                return `
                 <div class="task-item">
                     <div class="task-status ${task.status}">
                         ${getStatusIcon(task.status)}
                     </div>
                     <div class="task-info">
-                        <div class="task-url">${task.url || task.task_id}</div>
+                        <div class="task-url">${safeUrl}</div>
                         <div class="task-meta">
-                            <span>${task.status}</span>
+                            <span>${safeStatus}</span>
                             ${task.progress ? `<span>${task.progress}%</span>` : ''}
-                            ${task.output_path ? `<span>${task.output_path}</span>` : ''}
+                            ${safeOutputPath ? `<span>${safeOutputPath}</span>` : ''}
                         </div>
                     </div>
                     <div class="task-actions">
-                        ${task.status === 'completed' ? '<button class="btn-sm download" onclick="downloadTask(\'' + task.task_id + '\')">下载</button>' : ''}
+                        ${task.status === 'completed' ? '<button class="btn-sm download" onclick="downloadTask(\'' + safeTaskId + '\')">下载</button>' : ''}
                     </div>
                 </div>
-            `).join('');
+            `;
+            }).join('');
         }
 
         function getStatusIcon(status) {
@@ -887,6 +896,15 @@
 
         async function downloadTask(taskId) {
             window.open(`${API_BASE}/download/${taskId}`, '_blank');
+        }
+
+        function escapeHtml(value) {
+            return String(value)
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
         }
 
         function showToast(type, message) {
