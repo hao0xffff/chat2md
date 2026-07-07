@@ -1,5 +1,6 @@
 """Utility functions."""
 import re
+import unicodedata
 import uuid
 from pathlib import Path
 
@@ -24,6 +25,7 @@ def sanitize_filename(filename: str) -> str:
     Returns:
         A sanitized filename safe for use on most filesystems.
     """
+    filename = _strip_control_chars(filename)
     filename = re.sub(r'[<>:"/\\|?*]', "", filename)
     filename = re.sub(r"\s+", "_", filename)
     filename = filename.strip("._")
@@ -55,10 +57,15 @@ def sanitize_conversation_title(title: str | None, default: str = "Untitled") ->
     """
     if not title or not title.strip():
         return default
-    title = title.strip()
+    title = _strip_control_chars(title).strip()
     title = re.sub(r'[<>:"/\\|?*]', "", title)
     title = re.sub(r"\s+", "_", title)
     return title[:200] or default
+
+
+def _strip_control_chars(value: str) -> str:
+    """Remove invisible Unicode control/format chars unsafe for paths."""
+    return "".join(ch for ch in value if unicodedata.category(ch)[0] != "C")
 
 
 def extract_domain_from_url(url: str) -> str:

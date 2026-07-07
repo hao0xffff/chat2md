@@ -81,7 +81,7 @@ class Settings(BaseSettings):
     platform_url_patterns: dict[str, list[str]] = {
         "chatgpt": ["chatgpt.com/share"],
         "gemini": ["gemini.google.com/share", "share.gemini.google", "g.co/gemini/share"],
-        "doubao": ["doubao.com/share", "www.doubao.com/share"],
+        "doubao": ["doubao.com/share", "www.doubao.com/share", "doubao.com/thread", "www.doubao.com/thread"],
     }
 
     # CORS

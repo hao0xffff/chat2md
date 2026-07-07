@@ -17,7 +17,7 @@
 | --- | --- | --- |
 | ChatGPT | 启用 | `chatgpt.com/share` |
 | Gemini | 启用 | `gemini.google.com/share`, `share.gemini.google`, `g.co/gemini/share` |
-| Doubao | 已注册但默认未启用 | `doubao.com/share` |
+| Doubao | 已注册但默认未启用 | `doubao.com/share`, `doubao.com/thread` |
 
 Doubao 解析器仍是骨架实现，默认未启用，避免导出时产生伪成功。
 
@@ -184,7 +184,7 @@ HTTP_PROXY=http://127.0.0.1:7890
 
 # 平台和匹配规则。pydantic-settings 支持 JSON 风格复杂类型。
 ENABLED_PLATFORMS=["chatgpt","gemini"]
-PLATFORM_URL_PATTERNS={"chatgpt":["chatgpt.com/share"],"gemini":["gemini.google.com/share","share.gemini.google","g.co/gemini/share"],"doubao":["doubao.com/share"]}
+PLATFORM_URL_PATTERNS={"chatgpt":["chatgpt.com/share"],"gemini":["gemini.google.com/share","share.gemini.google","g.co/gemini/share"],"doubao":["doubao.com/share","www.doubao.com/share","doubao.com/thread","www.doubao.com/thread"]}
 
 # 默认导出选项
 DEFAULT_EXPORT_FORMAT=ai_readable

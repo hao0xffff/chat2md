@@ -109,6 +109,10 @@ class TestSanitizeConversationTitle:
         assert sanitize_conversation_title("  Title with spaces  ") == "Title_with_spaces"
         assert sanitize_conversation_title("Title|With|Pipes") == "TitleWithPipes"
 
+    def test_removes_invisible_control_chars(self):
+        """Test invisible Unicode control chars are removed."""
+        assert sanitize_conversation_title("\u200edirect access") == "direct_access"
+
     def test_truncates_long_titles(self):
         """Test long titles are truncated."""
         long_title = "a" * 300
