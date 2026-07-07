@@ -59,6 +59,11 @@ class TestParserRegistry:
         platform = ParserRegistry.detect_platform("https://gemini.google.com/share/abc123")
         assert platform == Platform.GEMINI
 
+    def test_detect_platform_gemini_share_domain(self):
+        """Test platform detection - Gemini share.gemini.google links."""
+        platform = ParserRegistry.detect_platform("https://share.gemini.google/Li9WOtl7kRLK")
+        assert platform == Platform.GEMINI
+
     def test_detect_platform_doubao(self):
         """Test platform detection - Doubao."""
         platform = ParserRegistry.detect_platform("https://doubao.com/share/abc123")

@@ -116,7 +116,7 @@ def _integration_examples() -> IntegrationExampleResponse:
         curl_batch_export=(
             "curl -X POST http://localhost:8000/api/v1/export/batch "
             "-H \"Content-Type: application/json\" "
-            "-d '{\"urls\":[\"https://chatgpt.com/share/xxx\",\"https://gemini.google.com/share/yyy\"]}'"
+            "-d '{\"urls\":[\"https://chatgpt.com/share/xxx\",\"https://share.gemini.google/yyy\"]}'"
         ),
         mcp_config_json={
             "mcpServers": {

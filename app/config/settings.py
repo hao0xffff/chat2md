@@ -80,7 +80,7 @@ class Settings(BaseSettings):
     enabled_platforms: list[str] = ["chatgpt", "gemini"]
     platform_url_patterns: dict[str, list[str]] = {
         "chatgpt": ["chatgpt.com/share"],
-        "gemini": ["gemini.google.com/share", "g.co/gemini/share"],
+        "gemini": ["gemini.google.com/share", "share.gemini.google", "g.co/gemini/share"],
         "doubao": ["doubao.com/share", "www.doubao.com/share"],
     }
 

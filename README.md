@@ -16,7 +16,7 @@
 | 平台 | 默认状态 | 链接匹配 |
 | --- | --- | --- |
 | ChatGPT | 启用 | `chatgpt.com/share` |
-| Gemini | 启用 | `gemini.google.com/share`, `g.co/gemini/share` |
+| Gemini | 启用 | `gemini.google.com/share`, `share.gemini.google`, `g.co/gemini/share` |
 | Doubao | 已注册但默认未启用 | `doubao.com/share` |
 
 Doubao 解析器仍是骨架实现，默认未启用，避免导出时产生伪成功。
@@ -89,7 +89,7 @@ curl -X POST http://localhost:8000/api/v1/export/batch \
   -d '{
     "urls": [
       "https://chatgpt.com/share/xxx",
-      "https://gemini.google.com/share/yyy"
+      "https://share.gemini.google/yyy"
     ],
     "output_dir": "./output"
   }'
@@ -184,7 +184,7 @@ HTTP_PROXY=http://127.0.0.1:7890
 
 # 平台和匹配规则。pydantic-settings 支持 JSON 风格复杂类型。
 ENABLED_PLATFORMS=["chatgpt","gemini"]
-PLATFORM_URL_PATTERNS={"chatgpt":["chatgpt.com/share"],"gemini":["gemini.google.com/share","g.co/gemini/share"],"doubao":["doubao.com/share"]}
+PLATFORM_URL_PATTERNS={"chatgpt":["chatgpt.com/share"],"gemini":["gemini.google.com/share","share.gemini.google","g.co/gemini/share"],"doubao":["doubao.com/share"]}
 
 # 默认导出选项
 DEFAULT_EXPORT_FORMAT=ai_readable

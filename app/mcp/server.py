@@ -35,7 +35,7 @@ async def list_tools() -> list[Tool]:
                         "type": "string",
                         "description": "The AI platform share link URL. "
                                      "Examples: https://chatgpt.com/share/xxx, "
-                                     "https://gemini.google.com/share/xxx"
+                                     "https://share.gemini.google/xxx"
                     },
                     "output_dir": {
                         "type": "string",
