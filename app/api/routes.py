@@ -10,10 +10,15 @@ from app.api.schemas import (
     TaskStatusResponse,
     DownloadResponse,
     ErrorResponse,
+    ExportConfigResponse,
+    ExportOptionsSchema,
+    PlatformInfo,
 )
 from app.api.dependencies import Container, container
 from app.application.export_service import ExportService
 from app.application.task_service import TaskService
+from app.config.settings import settings
+from app.domain.parser.registry import ParserRegistry
 from app.common.exceptions import (
     BusinessException,
     ParserException,
@@ -49,12 +54,14 @@ async def export_conversation(
     Use GET /task/{task_id} to check status.
     """
     try:
-        task = await export_service.create_export_task(request.url, request.output_dir)
+        options = request.model_dump(exclude={"url", "output_dir"})
+        task = await export_service.create_export_task(request.url, request.output_dir, options)
         background_tasks.add_task(export_service.execute_export, task.id)
         return ExportResponse(
             task_id=task.id,
             status=task.status.value,
-            message="Export task created"
+            message="Export task created",
+            output_dir=task.output_dir,
         )
     except ParserException as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -75,20 +82,23 @@ async def batch_export(
     The actual exports run in the background.
     """
     responses = []
+    options = request.model_dump(exclude={"urls", "output_dir"})
     for url in request.urls:
         try:
-            task = await export_service.create_export_task(url, request.output_dir)
+            task = await export_service.create_export_task(url, request.output_dir, options)
             background_tasks.add_task(export_service.execute_export, task.id)
             responses.append(ExportResponse(
                 task_id=task.id,
                 status=task.status.value,
-                message="Export task created"
+                message="Export task created",
+                output_dir=task.output_dir,
             ))
-        except Exception:
+        except Exception as e:
             responses.append(ExportResponse(
                 task_id="error",
                 status="failed",
-                message=f"Failed to create task for: {url}"
+                message=f"Failed to create task for {url}: {str(e)}",
+                output_dir=request.output_dir,
             ))
     return responses
 
@@ -157,3 +167,22 @@ async def download_export(
 async def health_check():
     """Health check endpoint."""
     return {"status": "healthy"}
+
+
+@router.get("/platforms", response_model=list[PlatformInfo])
+async def list_platforms() -> list[PlatformInfo]:
+    """List configured parser platforms."""
+    return [PlatformInfo(**item) for item in ParserRegistry.available_platforms()]
+
+
+@router.get("/config", response_model=ExportConfigResponse)
+async def get_export_config() -> ExportConfigResponse:
+    """Return runtime configuration used by the visual page and API clients."""
+    return ExportConfigResponse(
+        app_name=settings.app_name,
+        display_name="聊两毛的",
+        english_name="chat to markdown",
+        output_dir=str(settings.output_dir),
+        default_options=ExportOptionsSchema(),
+        platforms=[PlatformInfo(**item) for item in ParserRegistry.available_platforms()],
+    )

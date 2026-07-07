@@ -41,8 +41,15 @@ class ParserRegistry:
         Raises:
             PlatformNotSupportedException: If no parser is registered for the platform.
         """
+        from app.config.settings import settings
+
+        enabled = set(settings.enabled_platforms)
+        if platform.value not in enabled:
+            supported = [p for p in cls._parsers.keys() if p in enabled]
+            raise PlatformNotSupportedException(platform.value, supported)
+
         if platform.value not in cls._parsers:
-            supported = list(cls._parsers.keys())
+            supported = [p for p in cls._parsers.keys() if p in enabled]
             raise PlatformNotSupportedException(platform.value, supported)
         return cls._parsers[platform.value]
 
@@ -60,14 +67,16 @@ class ParserRegistry:
         Raises:
             PlatformNotSupportedException: If the platform cannot be detected.
         """
+        from app.config.settings import settings
+
         url_lower = url.lower()
-        if "chatgpt.com" in url_lower:
-            return Platform.CHATGPT
-        elif "gemini.google" in url_lower:
-            return Platform.GEMINI
-        elif "doubao.com" in url_lower:
-            return Platform.DOUBAN
-        supported = [p.value for p in Platform]
+        for platform_value, patterns in settings.platform_url_patterns.items():
+            if any(pattern.lower() in url_lower for pattern in patterns):
+                try:
+                    return Platform(platform_value)
+                except ValueError:
+                    continue
+        supported = list(settings.platform_url_patterns.keys())
         raise PlatformNotSupportedException(url, supported)
 
     @classmethod
@@ -99,7 +108,29 @@ class ParserRegistry:
     @classmethod
     def registered_platforms(cls) -> list[str]:
         """Get list of registered platform values."""
-        return list(cls._parsers.keys())
+        from app.config.settings import settings
+
+        enabled = set(settings.enabled_platforms)
+        return [platform for platform in cls._parsers.keys() if platform in enabled]
+
+    @classmethod
+    def available_platforms(cls) -> list[dict[str, object]]:
+        """Return configured platform metadata for API/UI clients."""
+        from app.config.settings import settings
+
+        enabled = set(settings.enabled_platforms)
+        items = []
+        for platform in Platform:
+            patterns = settings.platform_url_patterns.get(platform.value, [])
+            registered = platform.value in cls._parsers
+            items.append({
+                "id": platform.value,
+                "name": platform.value.title(),
+                "enabled": platform.value in enabled,
+                "registered": registered,
+                "patterns": patterns,
+            })
+        return items
 
 
 def register_parser(platform: Platform):

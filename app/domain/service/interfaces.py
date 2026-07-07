@@ -86,7 +86,8 @@ class ExporterInterface(ABC):
         self,
         document: KnowledgeDocument,
         output_dir: Path,
-        include_images: bool = True
+        include_images: bool = True,
+        **kwargs
     ) -> ExportResult:
         """
         Export a knowledge document to markdown.

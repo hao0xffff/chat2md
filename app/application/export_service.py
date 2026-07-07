@@ -1,8 +1,10 @@
 """Export service - orchestrates the export workflow."""
 from pathlib import Path
+from typing import Any
 
 import structlog
 
+from app.application.export_options import ExportOptions
 from app.application.export_task import ExportTask, ExportTaskStatus
 from app.config.settings import settings
 from app.domain.model.conversation import Conversation
@@ -33,6 +35,8 @@ class ExportService:
         downloader: DownloaderInterface | None = None,
         task_repository: "InMemoryTaskRepository | None" = None,
     ):
+        import app.infrastructure.parser  # noqa: F401
+
         self._parser_registry = parser_registry
         self._exporter = exporter or self._default_exporter()
         self._downloader = downloader or self._default_downloader()
@@ -49,9 +53,21 @@ class ExportService:
         from app.infrastructure.downloader.aiohttp_downloader import AiohttpDownloader
         return AiohttpDownloader()
 
-    async def create_export_task(self, url: str, output_dir: str | None = None) -> ExportTask:
+    async def create_export_task(
+        self,
+        url: str,
+        output_dir: str | None = None,
+        export_options: dict[str, Any] | ExportOptions | None = None,
+    ) -> ExportTask:
         """Create an export task."""
-        task = ExportTask(url=url, output_dir=output_dir)
+        platform = self._parser_registry.detect_platform(url)
+        self._parser_registry.get(platform)
+        options = (
+            export_options
+            if isinstance(export_options, ExportOptions)
+            else ExportOptions.from_mapping(export_options)
+        )
+        task = ExportTask(url=url, output_dir=output_dir, export_options=options.to_dict())
         if self._task_repo:
             await self._task_repo.save(task)
         return task
@@ -77,17 +93,21 @@ class ExportService:
             task.mark_parsing()
             await self._task_repo.save(task)
 
+            options = ExportOptions.from_mapping(task.export_options)
+
             # Parse the URL
             parser = ParserRegistry.create_parser(task.url)
             conversation = await parser.parse(task.url)
             task.conversation_id = conversation.id
+            conversation.metadata["source_url"] = task.url
+            conversation.metadata["export_options"] = options.to_dict()
 
             # Determine output directory
             base_output_dir = Path(task.output_dir) if task.output_dir else settings.output_dir
 
             # Mark images for download
             images = list(conversation.images)
-            if images:
+            if images and options.include_images:
                 task.mark_downloading()
                 await self._task_repo.save(task)
 
@@ -100,13 +120,15 @@ class ExportService:
 
                 # Update image local paths and wire to blocks
                 image_id_to_resource = {img.id: img for img in images}
-                for i, block in enumerate(conversation.blocks):
+                for i, result in enumerate(image_results):
+                    if i < len(images) and result.success and result.local_path:
+                        images[i].mark_downloaded(str(result.local_path))
+
+                for block in conversation.blocks:
                     if block.is_image:
                         image_id = block.metadata.get("image_id")
                         if image_id and image_id in image_id_to_resource:
                             img = image_id_to_resource[image_id]
-                            if i < len(image_results) and image_results[i].success and image_results[i].local_path:
-                                img.mark_downloaded(str(image_results[i].local_path))
                             block.metadata["local_path"] = img.local_path or ""
                             block.metadata["local_filename"] = img.local_filename or ""
 
@@ -115,7 +137,12 @@ class ExportService:
             await self._task_repo.save(task)
 
             document = self._conversation_to_document(conversation)
-            export_result = await self._exporter.export(document, base_output_dir)
+            export_result = await self._exporter.export(
+                document,
+                base_output_dir,
+                include_images=options.include_images,
+                options=options,
+            )
 
             if export_result.success:
                 task.mark_completed(
@@ -145,5 +172,9 @@ class ExportService:
             conversation_id=conversation.id,
             blocks=list(conversation.blocks),
             images=list(conversation.images),
-            metadata=conversation.metadata,
+            metadata={
+                **conversation.metadata,
+                "message_count": len(conversation.blocks),
+                "image_count": len(conversation.images),
+            },
         )

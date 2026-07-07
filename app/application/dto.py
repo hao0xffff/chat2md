@@ -49,6 +49,7 @@ class TaskStatusResponse(BaseModel):
     error: str | None = None
     message_count: int = 0
     image_count: int = 0
+    export_options: dict = Field(default_factory=dict)
     created_at: datetime
     completed_at: datetime | None = None
 

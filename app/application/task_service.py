@@ -91,6 +91,7 @@ class TaskService:
             error=task.error,
             message_count=task.message_count,
             image_count=task.image_count,
+            export_options=task.export_options,
             created_at=task.created_at,
             completed_at=task.completed_at,
         )

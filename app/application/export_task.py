@@ -28,6 +28,7 @@ class ExportTask:
     conversation_id: str | None = None
     url: str | None = None
     output_dir: str | None = None  # Custom output dir, None means use settings default
+    export_options: dict = field(default_factory=dict)
     status: ExportTaskStatus = ExportTaskStatus.PENDING
     progress: float = 0.0
     output_path: str | None = None

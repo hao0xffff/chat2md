@@ -5,8 +5,11 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import Tool, TextContent, JSONRPCError
 
-from app.application.export_service import ExportService
+from app.api.dependencies import container
 from app.config.settings import settings
+from app.domain.parser.registry import ParserRegistry
+
+import app.infrastructure.parser  # noqa: F401
 
 
 # Create the MCP server instance
@@ -38,6 +41,31 @@ async def list_tools() -> list[Tool]:
                         "type": "string",
                         "description": "Optional output directory path. "
                                      "Defaults to the project's output directory."
+                    },
+                    "format": {
+                        "type": "string",
+                        "enum": ["ai_readable", "transcript", "compact"],
+                        "description": "Markdown output format. Defaults to ai_readable."
+                    },
+                    "include_images": {
+                        "type": "boolean",
+                        "description": "Download and reference images. Defaults to true."
+                    },
+                    "include_metadata": {
+                        "type": "boolean",
+                        "description": "Include metadata and source fields. Defaults to true."
+                    },
+                    "create_index": {
+                        "type": "boolean",
+                        "description": "Create index.md. Defaults to true."
+                    },
+                    "create_manifest": {
+                        "type": "boolean",
+                        "description": "Create manifest.md. Defaults to true."
+                    },
+                    "create_messages": {
+                        "type": "boolean",
+                        "description": "Create messages.md. Defaults to true."
                     }
                 },
                 "required": ["url"]
@@ -95,10 +123,21 @@ async def _export_chat_to_markdown(args: dict[str, Any]) -> list[TextContent]:
     url: str = args["url"]
     output_dir: str | None = args.get("output_dir")
 
-    service = ExportService()
+    service = container.export_service()
+    option_keys = {
+        "format",
+        "include_images",
+        "include_metadata",
+        "include_frontmatter",
+        "create_index",
+        "create_manifest",
+        "create_messages",
+        "file_basename",
+    }
+    options = {key: args[key] for key in option_keys if key in args}
 
     # Create task and execute
-    task = await service.create_export_task(url, output_dir)
+    task = await service.create_export_task(url, output_dir, options)
     result = await service.execute_export(task.id)
 
     if result.is_failed:
@@ -118,9 +157,7 @@ async def _get_export_status(args: dict[str, Any]) -> list[TextContent]:
     """Get export task status."""
     task_id: str = args["task_id"]
 
-    from app.application.task_service import TaskService
-
-    service = TaskService()
+    service = container.task_service()
     try:
         status = await service.get_task_status(task_id)
         return [TextContent(
@@ -135,12 +172,14 @@ async def _get_export_status(args: dict[str, Any]) -> list[TextContent]:
 
 def _list_supported_platforms() -> list[TextContent]:
     """List supported platforms."""
+    lines = ["Supported platforms:"]
+    for platform in ParserRegistry.available_platforms():
+        if platform["enabled"] and platform["registered"]:
+            patterns = ", ".join(platform["patterns"])
+            lines.append(f"  - {platform['id']} ({patterns})")
     return [TextContent(
         type="text",
-        text="Supported platforms:\n"
-             "  - ChatGPT (chatgpt.com/share/xxx)\n"
-             "  - Gemini (gemini.google.com/share/xxx)\n"
-             "  - Doubao (doubao.com/share/xxx)"
+        text="\n".join(lines)
     )]
 
 

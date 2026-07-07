@@ -1,14 +1,14 @@
 [project]
-name = "chat2md"
+name = "chat-to-markdown"
 version = "0.1.0"
-description = "AI Conversation Export System - Export chat sessions to Markdown"
+description = "聊两毛的 / chat to markdown - export AI chat links to AI-readable Markdown bundles"
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
 authors = [
     { name = "chat2md", email = "chat2md@example.com" }
 ]
-keywords = ["fastapi", "chatgpt", "gemini", "markdown", "export", "ai"]
+keywords = ["fastapi", "chatgpt", "gemini", "markdown", "export", "ai", "mcp"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",

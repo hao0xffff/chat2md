@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     )
 
     # Application
-    app_name: str = "chat2md"
+    app_name: str = "chat-to-markdown"
     app_version: str = "0.1.0"
     debug: bool = False
     host: str = "0.0.0.0"
@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     log_format: str = "json"
 
     # HTTP Client
+    http_proxy: str | None = None
     http_timeout: int = 30
     http_max_connections: int = 100
     http_max_keepalive: int = 30
@@ -43,6 +44,13 @@ class Settings(BaseSettings):
     # Export
     markdown_code_fence: str = "```"
     markdown_image_prefix: str = "images"
+    default_export_format: str = "ai_readable"
+    default_include_images: bool = True
+    default_include_metadata: bool = True
+    default_include_frontmatter: bool = True
+    default_create_index: bool = True
+    default_create_manifest: bool = True
+    default_create_messages: bool = True
 
     # Parser
     parser_user_agent: str = (
@@ -51,6 +59,12 @@ class Settings(BaseSettings):
         "Chrome/120.0.0.0 Safari/537.36"
     )
     parser_timeout: int = 30
+    enabled_platforms: list[str] = ["chatgpt", "gemini"]
+    platform_url_patterns: dict[str, list[str]] = {
+        "chatgpt": ["chatgpt.com/share"],
+        "gemini": ["gemini.google.com/share", "g.co/gemini/share"],
+        "doubao": ["doubao.com/share", "www.doubao.com/share"],
+    }
 
     # CORS
     cors_origins: list[str] = ["*"]

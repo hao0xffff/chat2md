@@ -1,5 +1,6 @@
 """HTTP client using aiohttp."""
 import os
+import inspect
 import aiohttp
 from typing import Any
 
@@ -10,17 +11,13 @@ from app.common.exceptions import DownloadException
 
 logger = structlog.get_logger()
 
-# Default proxy URL - can be set via environment or hardcoded for development
-DEFAULT_PROXY = "http://127.0.0.1:7890"
-
-
 def _get_proxy() -> str | None:
     """Get proxy URL from environment."""
     for var in ["HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy"]:
         proxy = os.environ.get(var)
         if proxy:
             return proxy
-    return None
+    return settings.http_proxy
 
 PROXY_URL = _get_proxy()
 
@@ -71,12 +68,15 @@ class HttpClient:
         session = await self._get_session()
         self._logger.debug("http_get", url=url)
 
-        # Use proxy from env, default proxy, or kwargs
-        proxy = kwargs.pop("proxy", PROXY_URL or DEFAULT_PROXY)
+        # Use proxy from kwargs, environment, or settings.
+        proxy = kwargs.pop("proxy", PROXY_URL)
 
         try:
-            response = await session.get(url, proxy=proxy, **kwargs)
-            response.raise_for_status()
+            request = session.get(url, proxy=proxy, **kwargs)
+            response = await request if inspect.isawaitable(request) else request
+            status_check = response.raise_for_status()
+            if inspect.isawaitable(status_check):
+                await status_check
             return response
         except aiohttp.ClientError as e:
             self._logger.error("http_get_failed", url=url, error=str(e))
@@ -89,9 +89,13 @@ class HttpClient:
         """Make a POST request."""
         session = await self._get_session()
         self._logger.debug("http_post", url=url)
+        proxy = kwargs.pop("proxy", PROXY_URL)
         try:
-            response = await session.post(url, **kwargs)
-            response.raise_for_status()
+            request = session.post(url, proxy=proxy, **kwargs)
+            response = await request if inspect.isawaitable(request) else request
+            status_check = response.raise_for_status()
+            if inspect.isawaitable(status_check):
+                await status_check
             return response
         except aiohttp.ClientError as e:
             self._logger.error("http_post_failed", url=url, error=str(e))

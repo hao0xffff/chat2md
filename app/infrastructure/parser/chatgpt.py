@@ -10,6 +10,7 @@ from app.domain.parser.base import BaseParser
 from app.domain.parser.registry import register_parser
 from app.domain.value_objects import Platform
 from app.common.exceptions import ParserException
+from app.config.settings import settings
 
 logger = structlog.get_logger()
 
@@ -28,7 +29,7 @@ class ChatGPTParser(BaseParser):
 
     def __init__(self, proxy_url: str | None = None):
         super().__init__()
-        self._proxy_url = proxy_url or "http://127.0.0.1:7890"
+        self._proxy_url = proxy_url or settings.http_proxy
         self._playwright_parser = None
         self._url = ""
 

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -65,9 +66,11 @@ class AiohttpDownloader(DownloaderInterface):
 
         try:
             client = await self._get_http_client()
-            response = await client.get(resource.url)
+            request = client.get(resource.url)
+            response = await request if inspect.isawaitable(request) else request
 
-            content = await response.read()
+            read_result = response.read()
+            content = await read_result if inspect.isawaitable(read_result) else read_result
             file_size = len(content)
 
             if file_size > settings.max_file_size:

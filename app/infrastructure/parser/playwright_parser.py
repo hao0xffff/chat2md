@@ -12,6 +12,7 @@ from app.domain.model.block import Block, BlockType
 from app.domain.model.image_resource import ImageResource
 from app.domain.value_objects import Platform
 from app.common.utils import generate_id
+from app.config.settings import settings
 
 logger = structlog.get_logger()
 
@@ -26,7 +27,7 @@ class PlaywrightChatGPTParser:
     """
 
     def __init__(self, proxy_url: str | None = None):
-        self._proxy_url = proxy_url or "http://127.0.0.1:7890"
+        self._proxy_url = proxy_url or settings.http_proxy
         self._logger = logger.bind(component="playwright_parser")
 
     def parse(self, url: str) -> Conversation:
@@ -40,10 +41,8 @@ class PlaywrightChatGPTParser:
             A Conversation domain model.
         """
         with sync_playwright() as p:
-            browser = p.chromium.launch(
-                headless=True,
-                args=[f"--proxy-server={self._proxy_url}"]
-            )
+            args = [f"--proxy-server={self._proxy_url}"] if self._proxy_url else []
+            browser = p.chromium.launch(headless=True, args=args)
             try:
                 context = browser.new_context()
                 page = context.new_page()
@@ -68,8 +67,7 @@ class PlaywrightChatGPTParser:
                     img_resource = ImageResource(
                         id=img_info["id"],
                         url=img_info["url"],
-                        alt_text=img_info["alt"],
-                        metadata=img_info["metadata"]
+                        metadata={**img_info["metadata"], "alt_text": img_info["alt"]}
                     )
                     images.append(img_resource)
 

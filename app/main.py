@@ -2,7 +2,7 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -38,6 +38,9 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application."""
+    # Import parser modules so decorator-based registration is ready in all entry points.
+    import app.infrastructure.parser  # noqa: F401
+
     app = FastAPI(
         title=settings.app_name,
         version=settings.app_version,
@@ -66,8 +69,8 @@ def create_app() -> FastAPI:
 
     # Root web interface
     @app.get("/", response_class=HTMLResponse)
-    async def index():
-        return templates.TemplateResponse("index.html", {"request": {}})
+    async def index(request: Request):
+        return templates.TemplateResponse("index.html", {"request": request})
 
     return app
 

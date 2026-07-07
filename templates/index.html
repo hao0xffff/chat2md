@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat2MD - AI 会话导出工具</title>
+    <title>聊两毛的 - chat to markdown</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -190,6 +190,12 @@
             color: var(--text-muted);
         }
 
+        textarea.form-input {
+            min-height: 150px;
+            resize: vertical;
+            line-height: 1.5;
+        }
+
         .form-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -215,6 +221,29 @@
         .form-select:focus {
             outline: none;
             border-color: var(--accent-primary);
+        }
+
+        .option-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .option-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px 12px;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
+        .option-item input {
+            width: auto;
         }
 
         .btn {
@@ -422,6 +451,10 @@
                 grid-template-columns: 1fr;
             }
 
+            .option-grid {
+                grid-template-columns: 1fr;
+            }
+
             .task-meta {
                 flex-wrap: wrap;
             }
@@ -432,13 +465,13 @@
     <div class="container">
         <header class="header">
             <div class="logo">
-                <div class="logo-icon">📦</div>
-                <h1>Chat2MD</h1>
+                <div class="logo-icon">聊</div>
+                <h1>聊两毛的</h1>
             </div>
-            <p class="tagline">将 AI 会话导出为 Markdown 知识文档</p>
+            <p class="tagline">chat to markdown · 将 AI 聊天链接导出为可被 Agent 读取的 Markdown 文档包</p>
         </header>
 
-        <section class="platforms">
+        <section class="platforms" id="platforms">
             <div class="platform-card chatgpt active" data-platform="chatgpt">
                 <div class="platform-icon">
                     <svg viewBox="0 0 24 24" fill="white">
@@ -470,21 +503,34 @@
 
         <form class="export-form" id="exportForm">
             <div class="form-group">
-                <label class="form-label">分享链接</label>
-                <input type="text" class="form-input" id="urlInput" placeholder="https://chatgpt.com/share/xxx 或 https://gemini.google.com/share/xxx" required>
+                <label class="form-label">分享链接（一行一个，支持批量）</label>
+                <textarea class="form-input" id="urlInput" placeholder="https://chatgpt.com/share/xxx&#10;https://gemini.google.com/share/xxx" required></textarea>
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label class="form-label">输出目录</label>
-                    <input type="text" class="form-input" id="outputDir" placeholder="留空使用默认目录">
+                    <label class="form-label">导出路径</label>
+                    <input type="text" class="form-input" id="outputDir" placeholder="留空使用后端默认目录">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">批量模式</label>
-                    <select class="form-select" id="modeSelect">
-                        <option value="single">单个导出</option>
-                        <option value="batch">批量导出</option>
+                    <label class="form-label">Markdown 格式</label>
+                    <select class="form-select" id="formatSelect">
+                        <option value="ai_readable">AI 可读文档包</option>
+                        <option value="transcript">对话转录</option>
+                        <option value="compact">紧凑文档</option>
                     </select>
                 </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">主文件名</label>
+                <input type="text" class="form-input" id="fileBasename" value="conversation" placeholder="conversation">
+            </div>
+            <div class="option-grid">
+                <label class="option-item"><input type="checkbox" id="includeImages" checked> 下载图片</label>
+                <label class="option-item"><input type="checkbox" id="includeMetadata" checked> 元数据</label>
+                <label class="option-item"><input type="checkbox" id="includeFrontmatter" checked> Frontmatter</label>
+                <label class="option-item"><input type="checkbox" id="createIndex" checked> index.md</label>
+                <label class="option-item"><input type="checkbox" id="createMessages" checked> messages.md</label>
+                <label class="option-item"><input type="checkbox" id="createManifest" checked> manifest.md</label>
             </div>
             <button type="submit" class="btn btn-primary" id="submitBtn">
                 <span>开始导出</span>
@@ -514,66 +560,113 @@
         const API_BASE = '/api/v1';
         let tasks = [];
 
-        // Platform selection
-        document.querySelectorAll('.platform-card').forEach(card => {
-            card.addEventListener('click', () => {
-                document.querySelectorAll('.platform-card').forEach(c => c.classList.remove('active'));
-                card.classList.add('active');
-            });
-        });
+        loadConfig();
+
+        async function loadConfig() {
+            try {
+                const response = await fetch(`${API_BASE}/config`);
+                const config = await response.json();
+                document.querySelector('.tagline').textContent =
+                    `${config.english_name} · 默认导出路径：${config.output_dir}`;
+                renderPlatforms(config.platforms);
+            } catch (error) {
+                showToast('error', '配置加载失败');
+            }
+        }
+
+        function renderPlatforms(platforms) {
+            const container = document.getElementById('platforms');
+            container.innerHTML = platforms
+                .filter(p => p.enabled || p.registered)
+                .map(platform => {
+                    const ready = platform.enabled && platform.registered;
+                    const status = ready ? '可用' : platform.enabled ? '未注册' : '未启用';
+                    const patterns = platform.patterns.join(' / ') || '未配置';
+                    return `
+                        <div class="platform-card ${platform.id} ${ready ? 'active' : ''}" data-platform="${platform.id}">
+                            <div class="platform-icon">${platform.id.slice(0, 1).toUpperCase()}</div>
+                            <div class="platform-name">${platform.id}</div>
+                            <div class="platform-status">${status} · ${patterns}</div>
+                        </div>
+                    `;
+                }).join('');
+        }
+
+        function buildOptions() {
+            return {
+                output_dir: document.getElementById('outputDir').value || null,
+                format: document.getElementById('formatSelect').value,
+                include_images: document.getElementById('includeImages').checked,
+                include_metadata: document.getElementById('includeMetadata').checked,
+                include_frontmatter: document.getElementById('includeFrontmatter').checked,
+                create_index: document.getElementById('createIndex').checked,
+                create_messages: document.getElementById('createMessages').checked,
+                create_manifest: document.getElementById('createManifest').checked,
+                file_basename: document.getElementById('fileBasename').value || 'conversation'
+            };
+        }
 
         // Form submission
         document.getElementById('exportForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = document.getElementById('submitBtn');
-            const url = document.getElementById('urlInput').value;
-            const outputDir = document.getElementById('outputDir').value;
-            const mode = document.getElementById('modeSelect').value;
+            const urls = document.getElementById('urlInput').value
+                .split('\n')
+                .map(u => u.trim())
+                .filter(Boolean);
+            const options = buildOptions();
+
+            if (urls.length === 0) {
+                showToast('error', '请先粘贴分享链接');
+                return;
+            }
 
             btn.disabled = true;
             btn.innerHTML = '<span>导出中...</span>';
 
             try {
-                if (mode === 'single') {
+                if (urls.length === 1) {
                     const response = await fetch(`${API_BASE}/export`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ url, output_dir: outputDir || null })
+                        body: JSON.stringify({ ...options, url: urls[0] })
                     });
                     const data = await response.json();
-                    addTask(data);
+                    if (!response.ok) throw new Error(data.detail || '创建导出任务失败');
+                    addTask(data, urls[0]);
                 } else {
-                    const urls = url.split('\n').filter(u => u.trim());
-                    for (const u of urls) {
-                        const response = await fetch(`${API_BASE}/export`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ url: u.trim(), output_dir: outputDir || null })
-                        });
-                        const data = await response.json();
-                        addTask(data);
-                    }
+                    const response = await fetch(`${API_BASE}/export/batch`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ...options, urls })
+                    });
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.detail || '创建批量任务失败');
+                    data.forEach((item, index) => addTask(item, urls[index]));
                 }
                 showToast('success', '导出任务已创建');
                 document.getElementById('urlInput').value = '';
             } catch (error) {
-                showToast('error', '创建导出任务失败');
+                showToast('error', error.message || '创建导出任务失败');
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = '<span>开始导出</span>';
             }
         });
 
-        function addTask(taskData) {
+        function addTask(taskData, url) {
             const task = {
                 task_id: taskData.task_id,
-                url: document.getElementById('urlInput').value,
-                status: 'pending',
-                progress: 0
+                url,
+                status: taskData.status || 'pending',
+                progress: 0,
+                error: taskData.status === 'failed' ? taskData.message : null
             };
             tasks.unshift(task);
             renderTasks();
-            pollTaskStatus(task.task_id);
+            if (task.task_id !== 'error' && task.status !== 'failed') {
+                pollTaskStatus(task.task_id);
+            }
         }
 
         async function pollTaskStatus(taskId) {
