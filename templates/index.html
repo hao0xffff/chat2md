@@ -409,6 +409,73 @@
             margin-bottom: 16px;
         }
 
+        .integration-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 40px;
+        }
+
+        .info-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            min-width: 0;
+        }
+
+        .info-card h3 {
+            font-size: 16px;
+            margin-bottom: 12px;
+        }
+
+        .info-card p,
+        .info-card li {
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+
+        .link-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .doc-link {
+            color: white;
+            text-decoration: none;
+            border: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 13px;
+        }
+
+        .kv {
+            display: grid;
+            grid-template-columns: 120px 1fr;
+            gap: 6px 12px;
+            font-size: 13px;
+        }
+
+        .kv span:nth-child(odd) {
+            color: var(--text-muted);
+        }
+
+        pre.integration-code {
+            margin-top: 12px;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background: #0f0f17;
+            color: #d7d7e5;
+            font-size: 12px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
         /* Toast */
         .toast {
             position: fixed;
@@ -444,6 +511,10 @@
         /* Responsive */
         @media (max-width: 640px) {
             .platforms {
+                grid-template-columns: 1fr;
+            }
+
+            .integration-grid {
                 grid-template-columns: 1fr;
             }
 
@@ -537,6 +608,41 @@
             </button>
         </form>
 
+        <section class="integration-grid">
+            <div class="info-card">
+                <h3>后端接口 / Swagger</h3>
+                <p>模块启动后可直接用 Swagger 查看和调试所有后端接口。</p>
+                <div class="link-row">
+                    <a class="doc-link" id="swaggerLink" href="/docs" target="_blank">Swagger UI</a>
+                    <a class="doc-link" id="redocLink" href="/redoc" target="_blank">ReDoc</a>
+                    <a class="doc-link" id="openapiLink" href="/openapi.json" target="_blank">OpenAPI JSON</a>
+                </div>
+                <pre class="integration-code" id="curlExample">加载接口示例中...</pre>
+            </div>
+
+            <div class="info-card">
+                <h3>MCP 状态 / Agent 集成</h3>
+                <div class="kv" id="mcpStatus">
+                    <span>状态</span><span>加载中</span>
+                </div>
+                <pre class="integration-code" id="mcpExample">加载 MCP 配置中...</pre>
+            </div>
+
+            <div class="info-card">
+                <h3>写入路径 / 存储配置</h3>
+                <div class="kv" id="storageStatus">
+                    <span>后端</span><span>加载中</span>
+                </div>
+            </div>
+
+            <div class="info-card">
+                <h3>部署认证 / SSO</h3>
+                <div class="kv" id="authStatus">
+                    <span>模式</span><span>加载中</span>
+                </div>
+            </div>
+        </section>
+
         <section class="task-list" id="taskList">
             <div class="task-list-header">
                 <h2 class="task-list-title">导出任务</h2>
@@ -569,9 +675,45 @@
                 document.querySelector('.tagline').textContent =
                     `${config.english_name} · 默认导出路径：${config.output_dir}`;
                 renderPlatforms(config.platforms);
+                renderRuntimeConfig(config);
+
+                const integrationResponse = await fetch(`${API_BASE}/integration`);
+                const integration = await integrationResponse.json();
+                renderIntegration(integration);
             } catch (error) {
                 showToast('error', '配置加载失败');
             }
+        }
+
+        function renderRuntimeConfig(config) {
+            document.getElementById('swaggerLink').href = config.swagger.docs_url;
+            document.getElementById('redocLink').href = config.swagger.redoc_url;
+            document.getElementById('openapiLink').href = config.swagger.openapi_url;
+            document.getElementById('storageStatus').innerHTML = `
+                <span>后端</span><span>${config.storage.backend}</span>
+                <span>默认路径</span><span>${config.storage.local_output_dir || config.storage.output_dir}</span>
+                <span>允许请求覆盖</span><span>${config.storage.allow_custom_output_dir ? '是' : '否'}</span>
+                <span>对象存储桶</span><span>${config.storage.object_storage_bucket || '未配置'}</span>
+                <span>对象存储前缀</span><span>${config.storage.object_storage_prefix}</span>
+            `;
+            document.getElementById('authStatus').innerHTML = `
+                <span>模式</span><span>${config.auth.mode}</span>
+                <span>SSO Provider</span><span>${config.auth.sso_provider || '未配置'}</span>
+                <span>登录地址</span><span>${config.auth.sso_login_url || '未配置'}</span>
+            `;
+        }
+
+        function renderIntegration(integration) {
+            document.getElementById('curlExample').textContent = integration.curl_single_export;
+            document.getElementById('mcpStatus').innerHTML = `
+                <span>状态</span><span>${integration.mcp.enabled ? '可用' : '不可用'}</span>
+                <span>服务名</span><span>${integration.mcp.server_name}</span>
+                <span>传输</span><span>${integration.mcp.transport}</span>
+                <span>命令</span><span>${integration.mcp.command} ${integration.mcp.args.join(' ')}</span>
+                <span>工具</span><span>${integration.mcp.tools.map(t => t.name).join(', ')}</span>
+            `;
+            document.getElementById('mcpExample').textContent =
+                JSON.stringify(integration.mcp_config_json, null, 2);
         }
 
         function renderPlatforms(platforms) {

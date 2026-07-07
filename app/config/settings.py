@@ -16,6 +16,8 @@ class Settings(BaseSettings):
 
     # Application
     app_name: str = "chat-to-markdown"
+    display_name: str = "聊两毛的"
+    english_name: str = "chat to markdown"
     app_version: str = "0.1.0"
     debug: bool = False
     host: str = "0.0.0.0"
@@ -25,6 +27,22 @@ class Settings(BaseSettings):
     output_dir: Path = Path("output")
     static_dir: Path = Path("static")
     templates_dir: Path = Path("templates")
+
+    # Storage
+    storage_backend: str = "local"
+    allow_custom_output_dir: bool = True
+    local_output_dir: Path | None = None
+    object_storage_bucket: str | None = None
+    object_storage_prefix: str = "chat-to-markdown"
+    object_storage_endpoint: str | None = None
+    object_storage_region: str | None = None
+    object_storage_access_key_env: str = "STORAGE_ACCESS_KEY_ID"
+    object_storage_secret_key_env: str = "STORAGE_SECRET_ACCESS_KEY"
+
+    # Optional SSO metadata for deployments that protect the service at the edge.
+    auth_mode: str = "none"
+    sso_provider: str | None = None
+    sso_login_url: str | None = None
 
     # Logging
     log_level: str = "INFO"

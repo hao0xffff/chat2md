@@ -103,7 +103,11 @@ class ExportService:
             conversation.metadata["export_options"] = options.to_dict()
 
             # Determine output directory
-            base_output_dir = Path(task.output_dir) if task.output_dir else settings.output_dir
+            default_output_dir = settings.local_output_dir or settings.output_dir
+            if settings.allow_custom_output_dir and task.output_dir:
+                base_output_dir = Path(task.output_dir)
+            else:
+                base_output_dir = default_output_dir
 
             # Mark images for download
             images = list(conversation.images)

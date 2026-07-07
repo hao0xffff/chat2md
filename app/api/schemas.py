@@ -99,6 +99,70 @@ class PlatformInfo(BaseModel):
     patterns: list[str]
 
 
+class StorageConfigResponse(BaseModel):
+    """Runtime storage configuration."""
+
+    backend: str
+    output_dir: str
+    local_output_dir: str | None = None
+    allow_custom_output_dir: bool
+    object_storage_bucket: str | None = None
+    object_storage_prefix: str
+    object_storage_endpoint: str | None = None
+    object_storage_region: str | None = None
+    access_key_env: str
+    secret_key_env: str
+
+
+class AuthConfigResponse(BaseModel):
+    """Runtime authentication metadata."""
+
+    mode: str
+    sso_provider: str | None = None
+    sso_login_url: str | None = None
+
+
+class SwaggerInfoResponse(BaseModel):
+    """Swagger/OpenAPI endpoint information."""
+
+    docs_url: str
+    redoc_url: str
+    openapi_url: str
+    title: str
+    version: str
+
+
+class MCPToolInfo(BaseModel):
+    """MCP tool description for UI and health checks."""
+
+    name: str
+    description: str
+    required: list[str] = Field(default_factory=list)
+
+
+class MCPStatusResponse(BaseModel):
+    """MCP server status and integration metadata."""
+
+    enabled: bool
+    server_name: str
+    transport: str
+    command: str
+    args: list[str]
+    cwd: str
+    tools: list[MCPToolInfo]
+
+
+class IntegrationExampleResponse(BaseModel):
+    """Usage examples for API, MCP, and UI integration."""
+
+    swagger: SwaggerInfoResponse
+    mcp: MCPStatusResponse
+    curl_single_export: str
+    curl_batch_export: str
+    mcp_config_json: dict[str, Any]
+    python_example: str
+
+
 class ExportConfigResponse(BaseModel):
     """Runtime export configuration for API/UI clients."""
 
@@ -106,5 +170,8 @@ class ExportConfigResponse(BaseModel):
     display_name: str
     english_name: str
     output_dir: str
+    swagger: SwaggerInfoResponse
+    storage: StorageConfigResponse
+    auth: AuthConfigResponse
     default_options: ExportOptionsSchema
     platforms: list[PlatformInfo]

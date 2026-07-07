@@ -1,6 +1,6 @@
 """API routes for the export service."""
 from fastapi import APIRouter, Depends, BackgroundTasks, HTTPException
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse
 from pathlib import Path
 
 from app.api.schemas import (
@@ -12,7 +12,13 @@ from app.api.schemas import (
     ErrorResponse,
     ExportConfigResponse,
     ExportOptionsSchema,
+    AuthConfigResponse,
+    IntegrationExampleResponse,
+    MCPStatusResponse,
+    MCPToolInfo,
     PlatformInfo,
+    StorageConfigResponse,
+    SwaggerInfoResponse,
 )
 from app.api.dependencies import Container, container
 from app.application.export_service import ExportService
@@ -27,6 +33,107 @@ from app.common.exceptions import (
 )
 
 router = APIRouter(prefix="/api/v1", tags=["export"])
+
+
+def _swagger_info() -> SwaggerInfoResponse:
+    """Return public Swagger/OpenAPI endpoints."""
+    return SwaggerInfoResponse(
+        docs_url="/docs",
+        redoc_url="/redoc",
+        openapi_url="/openapi.json",
+        title=settings.app_name,
+        version=settings.app_version,
+    )
+
+
+def _storage_config() -> StorageConfigResponse:
+    """Return runtime storage configuration."""
+    return StorageConfigResponse(
+        backend=settings.storage_backend,
+        output_dir=str(settings.output_dir),
+        local_output_dir=str(settings.local_output_dir) if settings.local_output_dir else None,
+        allow_custom_output_dir=settings.allow_custom_output_dir,
+        object_storage_bucket=settings.object_storage_bucket,
+        object_storage_prefix=settings.object_storage_prefix,
+        object_storage_endpoint=settings.object_storage_endpoint,
+        object_storage_region=settings.object_storage_region,
+        access_key_env=settings.object_storage_access_key_env,
+        secret_key_env=settings.object_storage_secret_key_env,
+    )
+
+
+def _auth_config() -> AuthConfigResponse:
+    """Return deployment auth metadata."""
+    return AuthConfigResponse(
+        mode=settings.auth_mode,
+        sso_provider=settings.sso_provider,
+        sso_login_url=settings.sso_login_url,
+    )
+
+
+def _mcp_status() -> MCPStatusResponse:
+    """Return MCP status metadata without starting a separate transport."""
+    cwd = str(Path.cwd())
+    tools = [
+        MCPToolInfo(
+            name="export_chat_to_markdown",
+            description="Export one AI chat share link to an AI-readable Markdown bundle.",
+            required=["url"],
+        ),
+        MCPToolInfo(
+            name="get_export_status",
+            description="Get the status of an export task.",
+            required=["task_id"],
+        ),
+        MCPToolInfo(
+            name="list_supported_platforms",
+            description="List currently enabled and registered parser platforms.",
+            required=[],
+        ),
+    ]
+    return MCPStatusResponse(
+        enabled=True,
+        server_name="chat-to-markdown",
+        transport="stdio",
+        command="python",
+        args=["-m", "app.mcp.server"],
+        cwd=cwd,
+        tools=tools,
+    )
+
+
+def _integration_examples() -> IntegrationExampleResponse:
+    """Build copyable integration examples."""
+    cwd = str(Path.cwd()).replace("\\", "/")
+    return IntegrationExampleResponse(
+        swagger=_swagger_info(),
+        mcp=_mcp_status(),
+        curl_single_export=(
+            "curl -X POST http://localhost:8000/api/v1/export "
+            "-H \"Content-Type: application/json\" "
+            "-d '{\"url\":\"https://chatgpt.com/share/xxx\",\"format\":\"ai_readable\"}'"
+        ),
+        curl_batch_export=(
+            "curl -X POST http://localhost:8000/api/v1/export/batch "
+            "-H \"Content-Type: application/json\" "
+            "-d '{\"urls\":[\"https://chatgpt.com/share/xxx\",\"https://gemini.google.com/share/yyy\"]}'"
+        ),
+        mcp_config_json={
+            "mcpServers": {
+                "chat-to-markdown": {
+                    "command": "python",
+                    "args": ["-m", "app.mcp.server"],
+                    "cwd": cwd,
+                }
+            }
+        },
+        python_example=(
+            "import httpx\n\n"
+            "payload = {\"url\": \"https://chatgpt.com/share/xxx\", \"format\": \"ai_readable\"}\n"
+            "response = httpx.post(\"http://localhost:8000/api/v1/export\", json=payload)\n"
+            "print(response.json())\n"
+        ),
+    )
 
 
 def get_export_service() -> ExportService:
@@ -175,14 +282,41 @@ async def list_platforms() -> list[PlatformInfo]:
     return [PlatformInfo(**item) for item in ParserRegistry.available_platforms()]
 
 
+@router.get("/swagger", response_model=SwaggerInfoResponse, tags=["integration"])
+async def get_swagger_info() -> SwaggerInfoResponse:
+    """Return Swagger/OpenAPI URLs."""
+    return _swagger_info()
+
+
+@router.get("/storage", response_model=StorageConfigResponse, tags=["integration"])
+async def get_storage_config() -> StorageConfigResponse:
+    """Return storage configuration."""
+    return _storage_config()
+
+
+@router.get("/mcp/status", response_model=MCPStatusResponse, tags=["integration"])
+async def get_mcp_status() -> MCPStatusResponse:
+    """Return MCP server status and tool metadata."""
+    return _mcp_status()
+
+
+@router.get("/integration", response_model=IntegrationExampleResponse, tags=["integration"])
+async def get_integration_examples() -> IntegrationExampleResponse:
+    """Return copyable API and MCP integration examples."""
+    return _integration_examples()
+
+
 @router.get("/config", response_model=ExportConfigResponse)
 async def get_export_config() -> ExportConfigResponse:
     """Return runtime configuration used by the visual page and API clients."""
     return ExportConfigResponse(
         app_name=settings.app_name,
-        display_name="聊两毛的",
-        english_name="chat to markdown",
+        display_name=settings.display_name,
+        english_name=settings.english_name,
         output_dir=str(settings.output_dir),
+        swagger=_swagger_info(),
+        storage=_storage_config(),
+        auth=_auth_config(),
         default_options=ExportOptionsSchema(),
         platforms=[PlatformInfo(**item) for item in ParserRegistry.available_platforms()],
     )

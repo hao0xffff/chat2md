@@ -32,6 +32,8 @@ python -m app.main
 
 - Web UI: http://localhost:8000
 - API Docs: http://localhost:8000/docs
+- ReDoc: http://localhost:8000/redoc
+- OpenAPI JSON: http://localhost:8000/openapi.json
 - Health: http://localhost:8000/api/v1/health
 
 如果使用 Playwright 解析真实分享页，需要安装浏览器：
@@ -41,6 +43,24 @@ playwright install chromium
 ```
 
 ## 后端 API
+
+## 怎么使用
+
+### Web 页面
+
+1. 启动服务：`python -m app.main`
+2. 打开 `http://localhost:8000`
+3. 粘贴一个或多个 AI 分享链接，一行一个。
+4. 可选配置导出路径、Markdown 格式、是否生成 `index.md` / `messages.md` / `manifest.md`。
+5. 点击“开始导出”，在任务列表里查看状态并打开结果。
+
+### Swagger 调试
+
+打开 `http://localhost:8000/docs`，可以直接测试后端接口。也可以通过 `GET /api/v1/swagger` 获取 Swagger、ReDoc 和 OpenAPI JSON 地址。
+
+### Agent / 工作流接入
+
+优先使用 MCP。如果你的工作流只支持 HTTP，则调用 `POST /api/v1/export` 创建任务，再轮询 `GET /api/v1/task/{task_id}`，完成后读取 `output_path` 或调用 `GET /api/v1/download/{task_id}`。
 
 ### 单条导出
 
@@ -92,6 +112,10 @@ curl http://localhost:8000/api/v1/download/{task_id}
 ```bash
 curl http://localhost:8000/api/v1/config
 curl http://localhost:8000/api/v1/platforms
+curl http://localhost:8000/api/v1/swagger
+curl http://localhost:8000/api/v1/mcp/status
+curl http://localhost:8000/api/v1/integration
+curl http://localhost:8000/api/v1/storage
 ```
 
 ## MCP 服务
@@ -150,6 +174,7 @@ output/
 
 ```env
 OUTPUT_DIR=./output
+LOCAL_OUTPUT_DIR=./output
 HOST=0.0.0.0
 PORT=8000
 LOG_LEVEL=INFO
@@ -169,6 +194,22 @@ DEFAULT_INCLUDE_FRONTMATTER=true
 DEFAULT_CREATE_INDEX=true
 DEFAULT_CREATE_MANIFEST=true
 DEFAULT_CREATE_MESSAGES=true
+
+# 写入路径 / 存储配置。当前实际 writer 是本地文件系统；
+# 对象存储字段用于部署发现和后续扩展。
+STORAGE_BACKEND=local
+ALLOW_CUSTOM_OUTPUT_DIR=true
+OBJECT_STORAGE_BUCKET=
+OBJECT_STORAGE_PREFIX=chat-to-markdown
+OBJECT_STORAGE_ENDPOINT=
+OBJECT_STORAGE_REGION=
+OBJECT_STORAGE_ACCESS_KEY_ENV=STORAGE_ACCESS_KEY_ID
+OBJECT_STORAGE_SECRET_KEY_ENV=STORAGE_SECRET_ACCESS_KEY
+
+# 如果服务部署在 SSO 网关后，可以暴露这些元数据给集成页面。
+AUTH_MODE=none
+SSO_PROVIDER=
+SSO_LOGIN_URL=
 ```
 
 ## 测试

@@ -44,8 +44,18 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.app_name,
         version=settings.app_version,
-        description="AI Conversation Export System - Export chat sessions to Markdown",
+        description="聊两毛的 / chat to markdown - export AI chat links to AI-readable Markdown bundles",
         lifespan=lifespan,
+        openapi_tags=[
+            {
+                "name": "export",
+                "description": "Create export tasks, query status, and download markdown bundles.",
+            },
+            {
+                "name": "integration",
+                "description": "Swagger, MCP, storage, and integration discovery endpoints.",
+            },
+        ],
     )
 
     # CORS middleware
